@@ -1,0 +1,55 @@
+<launch>
+
+  <arg name="pouring" default="0"/>
+  <arg name="flipping" default="0"/>
+  <arg name="grasping" default="0"/>
+ 
+  <!-- table -->
+  <node name="table_transform" pkg="tf" type="static_transform_publisher"
+      args="0.534 0.0 0.0  0 0 0 /base_link /table 20"/>
+
+  
+  <group if="$(arg pouring)">
+    <!-- pancake maker -->
+    <node name="pancake_maker_transform" pkg="tf" type="static_transform_publisher" 
+        args="-0.1 0.0 0.75  0 0 0 /table /pancake_maker 20"/>
+
+    <!-- bottle -->
+    <node name="pancake_bottle_transform" pkg="tf" type="static_transform_publisher"
+        args="-0.01 0 0 0 0 0 /l_gripper_tool_frame /pancake_bottle 20"/>
+  </group>
+
+
+  <group if="$(arg flipping)">
+    <!-- pancake maker -->
+    <node name="pancake_maker_transform" pkg="tf" type="static_transform_publisher" 
+        args="-0.1 0.0 0.75  0 0 0 /table /pancake_maker 20"/>
+
+    <!-- pancake -->
+    <node name="pancake_transform" pkg="tf" type="static_transform_publisher"
+        args="0.0 0.0 0.0  0 0 0 /pancake_maker /pancake 20"/>
+  
+    <!-- left spatula -->
+    <node name="l_spatula_handle_transform" pkg="tf" 
+        type="static_transform_publisher" 
+        args="-0.03 0.0 0.0 0 0 0 /l_gripper_tool_frame /l_spatula_handle 20"/>
+    <node name="l_spatula_blade_transform" pkg="tf" 
+        type="static_transform_publisher" 
+        args="0.245 0.0 -0.015 0 2.1 0 /l_spatula_handle /l_spatula_blade 20"/> 
+
+    <!-- right spatula -->
+    <node name="r_spatula_handle_transform" pkg="tf" 
+        type="static_transform_publisher" 
+        args="-0.03 0.0 0.0 0 0 0 /r_gripper_tool_frame /r_spatula_handle 20"/>
+    <node name="r_spatula_blade_transform" pkg="tf" 
+        type="static_transform_publisher" 
+        args="0.245 0.0 -0.015 0 2.1 0 /r_spatula_handle /r_spatula_blade 20"/> 
+ </group>
+
+  <group if="$(arg grasping)">
+    <!-- bottle -->
+    <node name="pancake_bottle_transform" pkg="tf" type="static_transform_publisher"
+        args="-0.05 0.15 0.75 1.8 0 0 /table /pancake_bottle 20"/>
+  </group>
+
+</launch>

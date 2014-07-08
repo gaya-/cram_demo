@@ -1,0 +1,63 @@
+<launch>
+
+  <arg name="marker-topic" default="fccl_viz/visualization_marker"/>
+
+  <arg name="pouring" default="0"/>
+  <arg name="flipping" default="0"/>
+  <arg name="grasping" default="0"/>
+ 
+  <!-- table -->
+  <node name="table_model" pkg="cram_pr2_fccl_demo" 
+      type="table_model.py" args="/table">
+    <remap from="visualization_marker" to="$(arg marker-topic)"/>
+  </node>
+
+  <group if="$(arg pouring)">
+    <!-- oven -->
+    <node name="pancake_maker_model" pkg="cram_pr2_fccl_demo"
+        type="oven_model.py" args="/pancake_maker">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+
+    <!-- bottle visualization -->
+    <node name="pancake_bottle_model" pkg="cram_pr2_fccl_demo"
+        type="pancake_bottle_model.py" args="/pancake_bottle">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+  </group>
+
+  <group if="$(arg flipping)">
+    <!-- oven -->
+    <node name="pancake_maker_model" pkg="cram_pr2_fccl_demo"
+        type="oven_model.py" args="/pancake_maker">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+
+    <!-- pancake -->
+    <node name="pancake_model" pkg="cram_pr2_fccl_demo"
+        type="pancake_model.py" args="/pancake">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+
+    <!-- left spatula visualization -->
+    <node name="left_spatula_model" pkg="cram_pr2_fccl_demo"
+        type="spatula_model.py" args="/l_spatula_blade">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+
+    <!-- right spatula visualization -->
+    <node name="right_spatula_model" pkg="cram_pr2_fccl_demo"
+        type="spatula_model.py" args="/r_spatula_blade">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+  </group>
+
+  <group if="$(arg grasping)">
+    <!-- bottle visualization -->
+    <node name="pancake_bottle_model" pkg="cram_pr2_fccl_demo"
+        type="pancake_bottle_model.py" args="/pancake_bottle">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+  </group>
+
+</launch>
