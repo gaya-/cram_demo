@@ -1,0 +1,27 @@
+<launch>
+
+  <arg name="static-object-markers" default="0"/>
+
+  <arg name="marker-topic" default="fccl_viz/visualization_marker"/>
+
+  <arg name="pouring" default="0"/>
+  <arg name="flipping" default="0"/>
+  <arg name="grasping" default="0"/>
+ 
+  <include file="$(find loopback_controller_manager_examples)/launch/pr2_loopback_no_controllers.launch"/>
+
+  <include file="$(find cram_pr2_fccl_demo)/launch/pancake_object_vis.launch">
+    <arg name="marker-topic" value="$(arg marker-topic)"/>
+    <arg name="pouring" value="$(arg pouring)"/>
+    <arg name="flipping" value="$(arg flipping)"/>
+    <arg name="grasping" value="$(arg grasping)"/>
+  </include>
+
+  <include file="$(find cram_pr2_fccl_demo)/launch/pancake_static_transform_pubs.launch">
+    <arg name="pouring" value="$(arg pouring)"/>
+    <arg name="flipping" value="$(arg flipping)"/>
+    <arg name="grasping" value="$(arg grasping)"/>
+    <arg name="static-object-markers" value="$(arg static-object-markers)"/>
+  </include>
+
+</launch>
