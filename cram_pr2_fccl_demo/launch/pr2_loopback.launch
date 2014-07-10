@@ -1,0 +1,29 @@
+<launch>
+
+  <arg name="pouring" default="0"/>
+  <arg name="flipping" default="0"/>
+  <arg name="grasping" default="0"/>
+ 
+  <group if="$(arg pouring)">
+    <rosparam command="load"
+        file="$(find cram_pr2_fccl_demo)/config/pr2_pouring_start_config.yaml"
+        ns="loopback_controllers"/>
+  </group>
+
+   <group if="$(arg flipping)">
+    <rosparam command="load"
+        file="$(find cram_pr2_fccl_demo)/config/pr2_flipping_start_config.yaml"
+        ns="loopback_controllers"/>
+  </group>
+ 
+  <group if="$(arg grasping)">
+    <rosparam command="load"
+        file="$(find cram_pr2_fccl_demo)/config/pr2_grasping_start_config.yaml"
+        ns="loopback_controllers"/>
+  </group>
+ 
+  <include file="$(find loopback_controller_manager_examples)/launch/pr2_loopback_no_controllers.launch">
+    <arg name="default-starting-config" value="0"/>
+  </include>
+
+</launch>

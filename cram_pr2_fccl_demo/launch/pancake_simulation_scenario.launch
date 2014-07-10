@@ -8,7 +8,11 @@
   <arg name="flipping" default="0"/>
   <arg name="grasping" default="0"/>
  
-  <include file="$(find loopback_controller_manager_examples)/launch/pr2_loopback_no_controllers.launch"/>
+  <include file="$(find cram_pr2_fccl_demo)/launch/pr2_loopback.launch">
+    <arg name="pouring" value="$(arg pouring)"/>
+    <arg name="flipping" value="$(arg flipping)"/>
+    <arg name="grasping" value="$(arg grasping)"/>
+  </include>
 
   <include file="$(find cram_pr2_fccl_demo)/launch/pancake_object_vis.launch">
     <arg name="marker-topic" value="$(arg marker-topic)"/>
