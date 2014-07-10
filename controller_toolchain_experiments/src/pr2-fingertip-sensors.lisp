@@ -29,6 +29,107 @@
 (in-package :controller-experiments)
 
 ;;;
+;;; COMMON LISP UTILS
+;;;
+
+(defun merge-hash-tables (&rest tabels)
+  (case (length tabels)
+    (0 nil)
+    (1 (first tabels))
+    (t (reduce 
+        (lambda (union tabel) 
+          (maphash (lambda (key value) (setf (gethash key union) value)) tabel)
+          union)
+        (rest tabels)
+        :initial-value (alexandria:copy-hash-table (first tabels))))))
+
+;;;
+;;; FLUENT NETWORKS COMPUTING STUFF WITH FINGERTIP READINGS
+;;; AND SENSOR DESCRIPTIONS
+;;;
+
+(defparameter *l-gripper-input-fluent*
+  (cpl-impl:make-fluent :value nil))
+(defparameter *r-gripper-input-fluent*
+  (cpl-impl:make-fluent :value nil))
+
+(defparameter *l-gripper-stage1-fluent*
+  (cpl-impl:fl-funcall #'pr2-fingertip-msg->map *l-gripper-input-fluent* "l_gripper"))
+
+(defparameter *l-gripper-stage2-fluent*
+  (cpl-impl:fl-funcall #'raw-fingertip-readings->newtons *l-gripper-stage1-fluent* (pr2-fintertip-description)))
+
+(defun raw-fingertip-readings->newtons (sensor-readings sensor-descr)
+  (let ((result (alexandria:copy-hash-table sensor-readings)))
+    (maphash 
+     (lambda (key value)
+       (when (contains-association-p sensor-descr key) ; is sensor?
+         (add-associations 
+          result 
+          key (/ value (get-in-association sensor-descr (list key "force_per_unit"))))))
+     sensor-readings)
+    result))
+
+;;;
+;;; ROS SETUP TO OBTAIN READINGS
+;;;
+
+(defparameter *l-gripper-topic*
+  "/pressure/l_gripper_motor/restamped")
+(defparameter *r-gripper-topic*
+  "/pressure/r_gripper_motor/restamped")
+
+(defparameter *r-gripper-fingertip-subscription* nil)
+(defparameter *l-gripper-fingertip-subscription* nil)
+
+(defun subscribe-to-pr2-fingertips ()
+  (unless *l-gripper-fingertip-subscription*
+    (setf *l-gripper-fingertip-subscription*
+          (roslisp:subscribe
+           *l-gripper-topic*
+           "pr2_msgs/PressureState"
+           (lambda (msg)
+             (setf (cpl-impl:value *l-gripper-input-fluent*) msg))))))
+
+(defun unsubscribe-pr2-fingertips ()
+  (when *l-gripper-fingertip-subscription*
+    (roslisp:unsubscribe *l-gripper-fingertip-subscription*)
+    (setf *l-gripper-fingertip-subscription* nil)))
+
+(defun pr2-fingertip-msg->map (msg gripper-name)
+  (declare (type pr2_msgs-msg:pressurestate)
+           (string gripper-name))
+  (flet ((get-sensor-associations (finger-name finger-msg)
+           (reduce 
+            (lambda (assoc-list some-assoc)
+              (destructuring-bind (index value) some-assoc
+                (cons (conc-strings finger-name "_sensor" (write-to-string index))
+                      (cons value assoc-list))))
+            (mapcar #'list 
+                    (cl-utils:realize (cl-utils:take (length finger-msg) (cl-utils:range)))
+                    (coerce finger-msg 'list))
+            :initial-value '())))
+  (with-fields ((stamp (stamp header)) l_finger_tip r_finger_tip) msg
+    (apply #'add-associations
+     (make-hash-table :test 'equal)
+     (concatenate 'list
+                  (get-sensor-associations (conc-strings gripper-name "_l_finger") l_finger_tip)
+                  (get-sensor-associations (conc-strings gripper-name "_r_finger") r_finger_tip)
+                  (list "stamp" stamp)))
+    ;; (make-hash-table-description
+    ;;  (conc-strings gripper-name "_l_finger_sensors") 
+    ;;  (apply #'make-hash-table-description 
+    ;;         (get-sensor-associations (conc-strings gripper-name "_l_finger") l_finger_tip))
+    ;;  (conc-strings gripper-name "_r_finger_sensors") 
+    ;;  (apply #'make-hash-table-description 
+    ;;         (get-sensor-associations (conc-strings gripper-name "_r_finger") r_finger_tip))
+    ;;  "stamp" stamp)
+    )))
+
+(defun conc-strings (string1 &rest strings)
+  (apply #'concatenate 'string string1 strings))
+
+;;;
 ;;; PRESSURE SENSOR DESCRIPTION PROCESSING
 ;;;
 
@@ -89,14 +190,8 @@
   (roslisp:advertise topic "visualization_msgs/Marker"))
 
 (defun visualize-pr2-gripper-sensor-yaml (directory filename)
-  (mapcar #'visualize-gripper-sensor-descriptions
-          (get-values (read-pressure-sensor-descriptions directory filename))))
-
-(defun visualize-gripper-sensor-descriptions (gripper-descr)
-  (mapcar #'visualize-finger-sensor-descriptions (get-values gripper-descr)))
-
-(defun visualize-finger-sensor-descriptions (finger-descr)
-  (maphash #'visualize-sensor-description finger-descr))
+  (maphash #'visualize-sensor-description 
+           (read-pressure-sensor-descriptions directory filename)))
 
 (defun visualize-sensor-description (sensor-name sensor-descr)
   (roslisp:publish 
@@ -176,6 +271,16 @@
 (defparameter *pr2-pressure-sensor-description-filename*
   "pr2-fingertip-pressure-sensors.yaml")
 
+(defparameter *pr2-fingertip-description* nil)
+
+(defun pr2-fintertip-description ()
+  (unless *pr2-fingertip-description*
+    (setf *pr2-fingertip-description*
+          (read-pressure-sensor-descriptions 
+           *pr2-pressure-sensor-description-dir* 
+           *pr2-pressure-sensor-description-filename*)))
+  *pr2-fingertip-description*)
+
 (defun read-pressure-sensor-descriptions (directory filename)
   (post-process-gripper-descriptions
    (parse-fingertips-yaml directory filename)))
@@ -184,25 +289,21 @@
   (yaml:parse (make-pathname :directory directory :name filename)))
 
 (defun post-process-gripper-descriptions (gripper-descrs)
-  (maphash (lambda (gripper-key gripper-descr)
-             (setf (gethash gripper-key gripper-descrs)
-                   (post-process-gripper-description gripper-descr)))
-           gripper-descrs)
-  gripper-descrs)
+  (apply #'merge-hash-tables
+         (mapcar #'post-process-gripper-description
+                 (alexandria:hash-table-values gripper-descrs))))
 
 (defun post-process-gripper-description (gripper-descr)
-  (maphash (lambda (finger-key finger-descr)
-             (setf (gethash finger-key gripper-descr)
-                   (post-process-finger-description finger-descr)))
-           gripper-descr)
-  gripper-descr)
-
+  (apply #'merge-hash-tables 
+         (mapcar #'post-process-finger-description (alexandria:hash-table-values gripper-descr))))
+     
 (defun post-process-finger-description (finger-descr)
-  (maphash (lambda (sensor-key sensor-descr)
-             (setf (gethash sensor-key finger-descr)
-                   (post-process-sensor-description sensor-descr)))
-           finger-descr)
-  finger-descr)
+  (let ((new-finger-descr (make-hash-table :test 'equal)))
+    (maphash (lambda (sensor-key sensor-descr)
+               (add-associations new-finger-descr
+                                 sensor-key (post-process-sensor-description sensor-descr)))
+             finger-descr)
+    new-finger-descr))
 
 (defun post-process-sensor-description (sensor-descr)
   (let ((center (get-association sensor-descr "center"))

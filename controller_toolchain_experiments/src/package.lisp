@@ -30,5 +30,5 @@
 
 (defpackage :controller-toolchain-experiments
   (:nicknames :controller-experiments)
-  (:use #:common-lisp #:cl-robot-controllers #:roslisp-interfaces 
+  (:use #:cpl #:cl-robot-controllers #:roslisp-interfaces 
         #:roslisp #:serapeum))

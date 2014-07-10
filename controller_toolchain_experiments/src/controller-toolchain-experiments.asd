@@ -43,7 +43,8 @@
    serapeum 
    cl-utilities
    cl-yaml
-   visualization_msgs-msg)
+   visualization_msgs-msg
+   cram-language)
   :components
   ((:file "package")
    (:file "experimental-code" :depends-on ("package"))

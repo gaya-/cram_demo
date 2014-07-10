@@ -35,7 +35,6 @@
 (defgeneric find-association (description key))
 
 (defgeneric get-association (description key))
-
 (defgeneric contains-association-p (description key))
 
 (defgeneric get-keys (description))
