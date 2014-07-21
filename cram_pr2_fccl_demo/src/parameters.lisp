@@ -72,85 +72,44 @@
     "r_wrist_roll_joint"))
 
 ;;;
-;;; START CONFIGURATIONS FOR LEFT ARM
+;;; START CONFIGURATIONS FOR POURING
 ;;;
 
 (defparameter *r-arm-pouring-start-config*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
-   (list
-    (cl-robot-models:make-joint-state
-     :name "r_upper_arm_roll_joint" :position -1.392565491097796)
-    (cl-robot-models:make-joint-state
-     :name "r_shoulder_pan_joint" :position -1.0650093105988152)
-    (cl-robot-models:make-joint-state
-     :name "r_shoulder_lift_joint" :position 0.26376743371555295)
-    (cl-robot-models:make-joint-state
-     :name "r_forearm_roll_joint" :position -0.524)
-    (cl-robot-models:make-joint-state
-     :name "r_elbow_flex_joint" :position -1.629946646305397)
-    (cl-robot-models:make-joint-state
-     :name "r_wrist_flex_joint" :position -0.9668414952685922)
-    (cl-robot-models:make-joint-state
-     :name "r_wrist_roll_joint" :position 1.8614))))
+   (make-joint-state-list
+    *r-arm-joint-names*
+    '(-1.393 -1.065 0.264 -0.524 -1.63 -0.967 1.861))))
 
 (defparameter *l-arm-pouring-start-config*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
-   (list
-    (cl-robot-models:make-joint-state
-     :name "l_upper_arm_roll_joint" :position 1.9643297630604963)
-    (cl-robot-models:make-joint-state
-     :name "l_shoulder_pan_joint" :position 1.265335905500992)
-    (cl-robot-models:make-joint-state
-     :name "l_shoulder_lift_joint" :position 1.2666995326579538)
-    (cl-robot-models:make-joint-state
-     :name "l_forearm_roll_joint" :position -5.81991983730232)
-    (cl-robot-models:make-joint-state
-     :name "l_elbow_flex_joint" :position -0.2625872772879775)
-    (cl-robot-models:make-joint-state
-     :name "l_wrist_flex_joint" :position -0.13242260444085052)
-    (cl-robot-models:make-joint-state
-     :name "l_wrist_roll_joint" :position -2.64))))
+   (make-joint-state-list
+    *l-arm-joint-names*
+    '(1.964 1.265 1.267 -5.82 -0.263 -0.132 -2.64))))
+
+;;;
+;;; START CONFIGURATIONS FOR FLIPPING
+;;;
 
 (defparameter *l-arm-flipping-start-config*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
-
-   (list
-    (cl-robot-models:make-joint-state
-     :name "l_upper_arm_roll_joint" :position 1.32)
-    (cl-robot-models:make-joint-state
-     :name "l_shoulder_pan_joint" :position 1.08)
-    (cl-robot-models:make-joint-state
-     :name "l_shoulder_lift_joint" :position 0.16)
-    (cl-robot-models:make-joint-state
-     :name "l_forearm_roll_joint" :position 0.0)
-    (cl-robot-models:make-joint-state
-     :name "l_elbow_flex_joint" :position -1.14)
-    (cl-robot-models:make-joint-state
-     :name "l_wrist_flex_joint" :position -1.05)
-    (cl-robot-models:make-joint-state
-     :name "l_wrist_roll_joint" :position 1.57))))
+   (make-joint-state-list
+    *l-arm-joint-names*
+    '(1.32 1.08 0.16 0.0 -1.14 -1.05 1.57))))
 
 (defparameter *r-arm-flipping-start-config*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
-   (list
-    (cl-robot-models:make-joint-state
-     :name "r_upper_arm_roll_joint" :position -1.32)
-    (cl-robot-models:make-joint-state
-     :name "r_shoulder_pan_joint" :position -1.08)
-    (cl-robot-models:make-joint-state
-     :name "r_shoulder_lift_joint" :position 0.16)
-    (cl-robot-models:make-joint-state
-     :name "r_forearm_roll_joint" :position 0.0)
-    (cl-robot-models:make-joint-state
-     :name "r_elbow_flex_joint" :position -1.14)
-    (cl-robot-models:make-joint-state
-     :name "r_wrist_flex_joint" :position -1.05)
-    (cl-robot-models:make-joint-state
-     :name "r_wrist_roll_joint" :position 1.57))))
+   (make-joint-state-list
+    *r-arm-joint-names*
+    '(-1.32 -1.08 0.16 0.0 -1.14 -1.05 1.57))))
+
+;;;
+;;; START CONFIGURATIONS FOR GRASPING
+;;;
 
 (defparameter *r-arm-grasping-configuration*
   (cl-robot-models:make-robot-state
