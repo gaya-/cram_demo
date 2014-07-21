@@ -133,6 +133,24 @@
                 (funcall r-stop-controller))))))
       (ensure-pos-controllers)))))
 
+(cpl-impl:def-cram-function demo-part-grasping ()
+  (with-designators ((desig (action `((type constraints) (to grasp)))))
+    (destructuring-bind (motions l-start-controller l-stop-controller l-finished-fluent)
+        (reference desig)
+      ;; (format t "motions: ~a~%" motions)
+      ;; (format t "start: ~a~%" l-start-controller)
+      ;; (format t "stop: ~a~%" l-stop-controller)
+      ;; (format t "fluent: ~a~%" l-finished-fluent)
+      (ensure-vel-controllers)
+      (loop for motion in motions do
+        (format t "PERFORMING SOME MOTION.~%")
+        (cram-language:pursue
+          (funcall l-start-controller motion)
+          (cram-language:whenever ((cram-language:pulsed l-finished-fluent))
+            (when (cram-language-implementation:value l-finished-fluent)
+              (funcall l-stop-controller)))))
+      (ensure-pos-controllers))))
+
 (cpl-impl:def-cram-function move-into-flipping-configuration ()
   (ensure-pos-controllers)
   (cram-language:par

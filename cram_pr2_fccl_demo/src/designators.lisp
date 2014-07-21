@@ -39,6 +39,174 @@
    "knowrob:'PancakeMaker'"))
 
 ;;;
+;;; HAND-CODED GRASPING DESCRIPTION
+;;;
+
+(defun grasping-description ()
+  ;;; FEATURES
+  (let ((gripper-plane 
+          (make-geometric-feature
+           :id "left gripper plane"
+           :frame-id "l_gripper_tool_frame"
+           :feature-type 'PLANE
+           :orientation (cl-transforms:make-3d-vector 0 0 1)))
+        (gripper-main-axis
+          (make-geometric-feature
+           :id "left gripper main axis"
+           :frame-id "l_gripper_tool_frame"
+           :feature-type 'LINE
+           :orientation (cl-transforms:make-3d-vector 1 0 0)))
+        (bottle-main-vertical-plane
+          (make-geometric-feature
+           :id "pancake bottle main vertical plane"
+           :frame-id "pancake_bottle"
+           :feature-type 'PLANE'
+           :orientation (cl-transforms:make-3d-vector 0 1 0)))
+        (bottle-horizontal-plane
+          (make-geometric-feature
+           :id "bottle horizontal plane"
+           :frame-id "pancake_bottle"
+           :feature-type 'PLANE
+           :orientation (cl-transforms:make-3d-vector 0 0 1)))
+        (bottle-centroid
+          (make-geometric-feature
+           :id "bottle centroid"
+           :frame-id "pancake_bottle"
+           :feature-type 'POINT)))
+    ;;; RELATIONS
+    (let ((gripper-bottle-perpendicular-relation
+            (make-feature-relation
+             :id "left gripper perpendicular to bottle main vertical axis relation"
+             :frame-id "pancake_bottle" ; don't care, chosen because of other relations
+             :function-type 'PERPENDICULAR
+             :tool-feature gripper-plane
+             :object-feature bottle-main-vertical-plane))
+          (gripper-bottle-parallel-relation
+            (make-feature-relation
+             :id "left gripper parallel to bottle horizontal axis relation"
+             :frame-id "pancake_bottle" ; don't care, chosen because of other relations
+             :function-type 'PERPENDICULAR
+             :tool-feature gripper-plane
+             :object-feature bottle-horizontal-plane))
+          (gripper-pointing-at-bottle-relation
+            (make-feature-relation
+             :id "left gripper axis pointing at bottle"
+             :frame-id "pancake_bottle"
+             :function-type 'POINTING
+             :tool-feature gripper-main-axis
+             :object-feature bottle-centroid))
+          (gripper-bottle-distance-relation
+            (make-feature-relation
+             :id "left gripper distance to bottle relation"
+             :frame-id "pancake_bottle"
+             :function-type 'BEHIND
+             :tool-feature gripper-main-axis
+             :object-feature bottle-centroid))
+          (gripper-bottle-height-relation
+            (make-feature-relation
+             :id "left gripper height above bottle relation"
+             :frame-id "pancake_bottle"
+             :function-type 'ABOVE
+             :tool-feature gripper-main-axis
+             :object-feature bottle-centroid))   
+          (gripper-bottle-displacement-relation
+            (make-feature-relation
+             :id "left gripper to bottle displacement"
+             :frame-id "pancake_bottle"
+             :function-type 'LEFT
+             :tool-feature gripper-main-axis
+             :object-feature bottle-centroid)))
+      ;;; MOTIONS
+      (let ((rough-pre-grasp-motion
+              (make-motion-phase
+               :id "left gripper bottle rough pre-grasp motion"
+               :constraints
+               (list 
+                (make-feature-constraint
+                 :id "left gripper perpendicular to bottle main vertical axis constraint"
+                 :relation gripper-bottle-perpendicular-relation
+                 :lower-boundary -0.1 :upper-boundary 0.1)
+                (make-feature-constraint
+                 :id "left gripper parallel to bottle horizontal axis constraint"
+                 :relation gripper-bottle-parallel-relation
+                 :lower-boundary 0.95 :upper-boundary 1.2)
+                (make-feature-constraint
+                 :id "left gripper pointing at bottle constraint"
+                 :relation gripper-pointing-at-bottle-relation
+                 :lower-boundary -0.05 :upper-boundary 0.05)
+                (make-feature-constraint
+                 :id "left gripper to bottle distance constraint"
+                 :relation gripper-bottle-distance-relation
+                 :lower-boundary 0.15 :upper-boundary 0.6)
+                (make-feature-constraint
+                 :id "left gripper to bottle height constraint"
+                 :relation gripper-bottle-height-relation
+                 :lower-boundary -0.04 :upper-boundary 0.04)
+                (make-feature-constraint
+                 :id "left gripper to bottle displacement constraint"
+                 :relation gripper-bottle-displacement-relation
+                 :lower-boundary -0.04 :upper-boundary 0.04))))
+            (pre-grasp-motion
+              (make-motion-phase
+               :id "left gripper bottle pre-grasp motion"
+               :constraints
+               (list 
+                (make-feature-constraint
+                 :id "left gripper perpendicular to bottle main vertical axis constraint"
+                 :relation gripper-bottle-perpendicular-relation
+                 :lower-boundary -0.01 :upper-boundary 0.01)
+                (make-feature-constraint
+                 :id "left gripper parallel to bottle horizontal axis constraint"
+                 :relation gripper-bottle-parallel-relation
+                 :lower-boundary 0.99 :upper-boundary 1.2)
+                (make-feature-constraint
+                 :id "left gripper pointing at bottle constraint"
+                 :relation gripper-pointing-at-bottle-relation
+                 :lower-boundary -0.01 :upper-boundary 0.01)
+                (make-feature-constraint
+                 :id "left gripper to bottle distance constraint"
+                 :relation gripper-bottle-distance-relation
+                 :lower-boundary 0.1 :upper-boundary 0.2)
+                (make-feature-constraint
+                 :id "left gripper to bottle height constraint"
+                 :relation gripper-bottle-height-relation
+                 :lower-boundary -0.02 :upper-boundary 0.02)
+                (make-feature-constraint
+                 :id "left gripper to bottle displacement constraint"
+                 :relation gripper-bottle-displacement-relation
+                 :lower-boundary -0.01 :upper-boundary 0.01))))
+            (grasping-motion
+              (make-motion-phase
+               :id "left gripper bottle grasping motion"
+               :constraints
+               (list 
+                (make-feature-constraint
+                 :id "left gripper perpendicular to bottle main vertical axis constraint"
+                 :relation gripper-bottle-perpendicular-relation
+                 :lower-boundary -0.005 :upper-boundary 0.005)
+                (make-feature-constraint
+                 :id "left gripper parallel to bottle horizontal axis constraint"
+                 :relation gripper-bottle-parallel-relation
+                 :lower-boundary 0.98 :upper-boundary 1.2)
+                (make-feature-constraint
+                 :id "left gripper pointing at bottle constraint"
+                 :relation gripper-pointing-at-bottle-relation
+                 :lower-boundary -0.005 :upper-boundary 0.005)
+                (make-feature-constraint
+                 :id "left gripper to bottle distance constraint"
+                 :relation gripper-bottle-distance-relation
+                 :lower-boundary -0.01 :upper-boundary 0.01)
+                (make-feature-constraint
+                 :id "left gripper to bottle height constraint"
+                 :relation gripper-bottle-height-relation
+                 :lower-boundary -0.005 :upper-boundary 0.005)
+                (make-feature-constraint
+                 :id "left gripper to bottle displacement constraint"
+                 :relation gripper-bottle-displacement-relation
+                 :lower-boundary -0.01 :upper-boundary 0.01)))))
+        (list rough-pre-grasp-motion pre-grasp-motion grasping-motion)))))
+
+;;;
 ;;; HAND-CODED FLIPPING DESCRIPTION
 ;;;
 
@@ -287,27 +455,27 @@
            :feature-type 'LINE
            :origin (cl-transforms:make-3d-vector 0 0.0 0.0475)
            :orientation (cl-transforms:make-3d-vector 0 1 0)))
-          (right-spatula-blade
-           (make-geometric-feature
-            :id "right spatula blade"
-            :frame-id "r_spatula_blade"
-            :feature-type 'PLANE
-            :origin (cl-transforms:make-3d-vector 0 0 0)
-            :orientation (cl-transforms:make-3d-vector 1 0 0)))
-          (pancake-right-rim
-           (make-geometric-feature
-            :id "pancake right rim"
-            :frame-id "pancake"
-            :feature-type 'LINE
-            :origin (cl-transforms:make-3d-vector 0 -0.06 0)
-            :orientation (cl-transforms:make-3d-vector 1 0 0)))
-          (oven-center
-           (make-geometric-feature
-            :id "oven center"
-            :frame-id "pancake_maker"
-            :feature-type 'PLANE
-            :origin (cl-transforms:make-3d-vector 0 0 0.05)
-            :orientation (cl-transforms:make-3d-vector 0 0 1))))
+        (right-spatula-blade
+          (make-geometric-feature
+           :id "right spatula blade"
+           :frame-id "r_spatula_blade"
+           :feature-type 'PLANE
+           :origin (cl-transforms:make-3d-vector 0 0 0)
+           :orientation (cl-transforms:make-3d-vector 1 0 0)))
+        (pancake-right-rim
+          (make-geometric-feature
+           :id "pancake right rim"
+           :frame-id "pancake"
+           :feature-type 'LINE
+           :origin (cl-transforms:make-3d-vector 0 -0.06 0)
+           :orientation (cl-transforms:make-3d-vector 1 0 0)))
+        (oven-center
+          (make-geometric-feature
+           :id "oven center"
+           :frame-id "pancake_maker"
+           :feature-type 'PLANE
+           :origin (cl-transforms:make-3d-vector 0 0 0.05)
+           :orientation (cl-transforms:make-3d-vector 0 0 1))))
     ;;; RELATIONS
     (let ((spatula-front-right-pancake
             (make-feature-relation
@@ -470,4 +638,14 @@
     (lisp-fun controller-fluent left-arm ?l-fluent)
     (lisp-fun controller-start right-arm ?r-start)
     (lisp-fun controller-stop right-arm ?r-stop)
-    (lisp-fun controller-fluent right-arm ?r-fluent)))
+    (lisp-fun controller-fluent right-arm ?r-fluent))
+
+  (<- (action-desig ?desig (?motion ?l-start ?l-stop ?l-fluent))
+    (constraints-desig? ?desig)
+    (desig-prop ?desig (to grasp))
+    (lisp-fun grasping-description ?motion)
+    (lisp-fun controller-start left-arm ?l-start)
+    (lisp-fun controller-stop left-arm ?l-stop)
+    (lisp-fun controller-fluent left-arm ?l-fluent)
+)
+)
