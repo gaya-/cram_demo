@@ -29,6 +29,17 @@
 (in-package :pr2-fccl-demo)
 
 ;;;
+;;; AUX METHODS TO INIT PARAMETERS
+;;;
+
+(defun make-joint-state-list (joint-names joint-positions)
+  "Takes a list of `joint-names` and a list of `joint-positions`, and
+ returns a list joint-states. Input lists need to be of equal length."
+  (mapcar (lambda (name position)
+            (cl-robot-models:make-joint-state :name name :position position))
+          joint-names joint-positions))
+
+;;;
 ;;; KINEMATICS OF LEFT AND RIGHT ARM
 ;;;
 
@@ -105,6 +116,7 @@
 (defparameter *l-arm-flipping-start-config*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
+
    (list
     (cl-robot-models:make-joint-state
      :name "l_upper_arm_roll_joint" :position 1.32)
@@ -143,18 +155,16 @@
 (defparameter *r-arm-grasping-configuration*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
-   (mapcar (lambda (name position)
-             (cl-robot-models:make-joint-state :name name :position position))
-           *r-arm-joint-names*
-           '(-1.964 -1.265 1.267 5.82 -0.263 -0.132 2.641))))
+   (make-joint-state-list
+    *r-arm-joint-names*
+    '(-1.964 -1.265 1.267 5.82 -0.263 -0.132 2.641))))
 
 (defparameter *l-arm-grasping-configuration*
   (cl-robot-models:make-robot-state
    "Raphael" "PR2"
-   (mapcar (lambda (name position)
-             (cl-robot-models:make-joint-state :name name :position position))
-           *l-arm-joint-names*
-           '(0.593 1.265 0.964 0.524 -2.1 -0.067 4.419))))
+   (make-joint-state-list
+    *l-arm-joint-names*
+    '(0.593 1.265 0.964 0.524 -2.1 -0.067 4.419))))
 
 ;;;
 ;;; STANDARD POSITION CONTROLLERS FOR PR2 ARMS
