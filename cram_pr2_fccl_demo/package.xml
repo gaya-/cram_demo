@@ -25,6 +25,7 @@
   <build_depend>cl_feature_constraints</build_depend>
   <build_depend>cl_robot_models</build_depend>
   <build_depend>roslisp_utilities</build_depend>
+  <build_depend>loopback_controller_manager_examples</build_depend>
 
   <run_depend>sbcl</run_depend>
   <run_depend>json_prolog</run_depend>
@@ -39,4 +40,5 @@
   <run_depend>cl_feature_constraints</run_depend>
   <run_depend>cl_robot_models</run_depend>
   <run_depend>roslisp_utilities</run_depend>
+  <run_depend>loopback_controller_manager_examples</run_depend>
 </package>
