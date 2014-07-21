@@ -26,4 +26,5 @@
     <arg name="default-starting-config" value="0"/>
   </include>
 
+  <include file="$(find fccl_nodes)/launch/pr2_fccl_arm_controllers.launch"/>
 </launch>
