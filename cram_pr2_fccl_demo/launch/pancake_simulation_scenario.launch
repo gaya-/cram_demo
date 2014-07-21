@@ -7,7 +7,7 @@
   <arg name="pouring" default="0"/>
   <arg name="flipping" default="0"/>
   <arg name="grasping" default="0"/>
- 
+
   <include file="$(find cram_pr2_fccl_demo)/launch/pr2_loopback.launch">
     <arg name="pouring" value="$(arg pouring)"/>
     <arg name="flipping" value="$(arg flipping)"/>
@@ -28,4 +28,7 @@
     <arg name="static-object-markers" value="$(arg static-object-markers)"/>
   </include>
 
+  <include file="$(find cram_pr2_fccl_demo)/launch/feature_vis.launch">
+    <arg name="marker-topic" value="$(arg marker-topic)"/>
+  </include>
 </launch>

@@ -1,0 +1,15 @@
+<launch>
+  <arg name="marker-topic" default="fccl_viz/visualization_marker"/>
+
+  <node name="l_feature_visualization" pkg="fccl_visualization"
+      type="feature_visualization.py" args="l_arm_fccl" output="screen">
+    <remap from="~fccl_goal" to="/l_arm_fccl_controller/command/goal"/>
+    <remap from="visualization_marker" to="$(arg marker-topic)"/>
+  </node>
+
+  <node name="r_feature_visualization" pkg="fccl_visualization"
+      type="feature_visualization.py" args="r_arm_fccl" output="screen">
+    <remap from="~fccl_goal" to="/r_arm_fccl_controller/command/goal"/>
+    <remap from="visualization_marker" to="$(arg marker-topic)"/>
+  </node>
+</launch>
