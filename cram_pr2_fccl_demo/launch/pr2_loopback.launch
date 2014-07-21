@@ -28,5 +28,8 @@
 
   <include file="$(find loopback_controller_manager_examples)/launch/load_pr2_standard_arm_action_controllers.launch"/>
 
+  <include file="$(find loopback_controller_manager_examples)/launch/load_pr2_joint_velocity_controllers.launch"/>
+
+
   <include file="$(find fccl_nodes)/launch/pr2_fccl_arm_controllers.launch"/>
 </launch>
