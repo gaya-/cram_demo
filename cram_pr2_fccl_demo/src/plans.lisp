@@ -149,6 +149,16 @@
     (pr2-controllers:move-arm (get-left-arm-position-controller)
                               *l-arm-pouring-start-config* 4.0)))
 
+(cpl-impl:def-cram-function move-into-grasping-configuration ()
+  (ensure-pos-controllers)
+  (cram-language:par
+    (pr2-controllers:move-arm 
+     (get-right-arm-position-controller)
+     *r-arm-grasping-configuration* 4.0)
+    (pr2-controllers:move-arm
+     (get-left-arm-position-controller)
+     *l-arm-grasping-configuration* 4.0)))
+
 (defun add-motion-phase-to-designator-description (old-desig new-phase-id)
   (let ((current-desig (cram-designators:current-desig old-desig)))
     (cram-designators:with-desig-props (phases) current-desig

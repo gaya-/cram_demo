@@ -140,6 +140,25 @@
     (cl-robot-models:make-joint-state
      :name "r_wrist_roll_joint" :position 1.57))))
 
+(defparameter *r-arm-grasping-configuration*
+  (cl-robot-models:make-robot-state
+   "Raphael" "PR2"
+   (mapcar (lambda (name position)
+             (cl-robot-models:make-joint-state :name name :position position))
+           *r-arm-joint-names*
+           '(-1.9643297630604963 -1.265335905500992 1.2666995326579538
+             5.81991983730232 -0.2625872772879775 -0.13242260444085052
+             -154.3589535227015))))
+
+(defparameter *l-arm-grasping-configuration*
+  (cl-robot-models:make-robot-state
+   "Raphael" "PR2"
+   (mapcar (lambda (name position)
+             (cl-robot-models:make-joint-state :name name :position position))
+           *l-arm-joint-names*
+           '(0.592565491097796 1.2650093105988152 0.96376743371555295
+             214.04420097719472 -2.1 -0.0668414952685922 -221.66147986216077))))
+
 ;;;
 ;;; STANDARD POSITION CONTROLLERS FOR PR2 ARMS
 ;;;
