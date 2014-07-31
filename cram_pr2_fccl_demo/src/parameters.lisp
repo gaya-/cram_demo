@@ -39,6 +39,40 @@
             (cl-robot-models:make-joint-state :name name :position position))
           joint-names joint-positions))
 
+(defun mirror-prefix (prefix)
+  (cond
+    ((string= "l" prefix) "r")
+    ((string= "r" prefix) "l")))
+
+(defun mirror-joint-name (joint-name)
+  (concatenate 'string 
+               (mirror-prefix (subseq joint-name 0 1))
+               (subseq joint-name 1 (length joint-name))))
+
+(defun mirrored-joint-position-p (joint-name)
+  (find joint-name *mirrored-joints* :test #'string=))
+
+(defun mirror-joint-position (joint-name joint-position)
+  (if (mirrored-joint-position-p joint-name)
+      (- joint-position)
+      joint-position))
+
+(defun mirror-joint-state (joint-state)
+  (let ((new-joint-state (cl-robot-models:copy-joint-state joint-state)))
+    (with-slots ((joint-name cl-robot-models::name)
+                 (joint-position cl-robot-models::position)) new-joint-state
+      (setf joint-position (mirror-joint-position joint-name joint-position))
+      (setf joint-name (mirror-joint-name joint-name))
+    new-joint-state)))
+
+(defun mirror-config (config)
+  (with-slots ((joint-states cl-robot-models:joint-states)
+               (robot-model cl-robot-models:robot-model)
+               (robot-name cl-robot-models:robot-name)) config
+    (cl-robot-models:make-robot-state 
+     robot-name robot-model 
+    (mapcar #'mirror-joint-state (alexandria:hash-table-values joint-states)))))
+
 ;;;
 ;;; KINEMATICS OF LEFT AND RIGHT ARM
 ;;;
@@ -63,13 +97,51 @@
     "l_wrist_roll_joint"))
 
 (defparameter *r-arm-joint-names*
+  (mapcar #'mirror-joint-name *l-arm-joint-names*))
+
+(defparameter *r-arm-mirrored-joints*
   '("r_upper_arm_roll_joint"
     "r_shoulder_pan_joint"
-    "r_shoulder_lift_joint"
     "r_forearm_roll_joint"
-    "r_elbow_flex_joint"
-    "r_wrist_flex_joint"
     "r_wrist_roll_joint"))
+
+(defparameter *l-arm-mirrored-joints*
+  (mapcar #'mirror-joint-name *r-arm-mirrored-joints*))
+
+(defparameter *mirrored-joints*
+  (concatenate 'list 
+               *r-arm-mirrored-joints* 
+               *l-arm-mirrored-joints*))
+
+(defun other-arm (arm)
+  (ecase arm
+    (right-arm 'left-arm)
+    (left-arm 'right-arm)))
+
+;;;
+;;; RESTING CONFIGURATIONS FOR ARMS
+;;;
+
+(defparameter *r-arm-resting-config* 
+  (cl-robot-models:make-robot-state
+   "Raphael" "PR2"
+   (make-joint-state-list
+    *r-arm-joint-names*
+    '(-1.964 -1.265 1.267 5.82 -0.263 -0.132 2.641))))
+
+(defparameter *l-arm-resting-config*
+  (mirror-config *r-arm-resting-config*)
+  ;; (cl-robot-models:make-robot-state
+  ;;  "Raphael" "PR2"
+  ;;  (make-joint-state-list
+  ;;   *l-arm-joint-names*
+  ;;   '(1.964 1.265 1.267 -5.82 -0.263 -0.132 -2.641)))
+  )
+
+(defun resting-config (arm)
+  (ecase arm
+    (right-arm *r-arm-resting-config*)
+    (left-arm *l-arm-resting-config*)))
 
 ;;;
 ;;; START CONFIGURATIONS FOR POURING
@@ -83,11 +155,22 @@
     '(-1.393 -1.065 0.264 -0.524 -1.63 -0.967 1.861))))
 
 (defparameter *l-arm-pouring-start-config*
-  (cl-robot-models:make-robot-state
-   "Raphael" "PR2"
-   (make-joint-state-list
-    *l-arm-joint-names*
-    '(1.964 1.265 1.267 -5.82 -0.263 -0.132 -2.64))))
+  ;; (cl-robot-models:make-robot-state
+  ;;  "Raphael" "PR2"
+  ;;  (make-joint-state-list
+  ;;   *l-arm-joint-names*
+  ;;   '(1.964 1.265 1.267 -5.82 -0.263 -0.132 -2.64)))
+  (mirror-config *r-arm-pouring-start-config*))
+
+(defun pouring-config (arm)
+  (ecase arm
+    (right-arm *r-arm-pouring-start-config*)
+    (left-arm *l-arm-pouring-start-config*)))
+
+(defun get-pouring-start-config (pouring-arm query-arm)
+  (if (eql pouring-arm query-arm)
+      (pouring-config query-arm)
+      (resting-config query-arm)))
 
 ;;;
 ;;; START CONFIGURATIONS FOR FLIPPING
@@ -101,22 +184,21 @@
     '(1.32 1.08 0.16 0.0 -1.14 -1.05 1.57))))
 
 (defparameter *r-arm-flipping-start-config*
-  (cl-robot-models:make-robot-state
-   "Raphael" "PR2"
-   (make-joint-state-list
-    *r-arm-joint-names*
-    '(-1.32 -1.08 0.16 0.0 -1.14 -1.05 1.57))))
+  ;; (cl-robot-models:make-robot-state
+  ;;  "Raphael" "PR2"
+  ;;  (make-joint-state-list
+  ;;   *r-arm-joint-names*
+  ;;   '(-1.32 -1.08 0.16 0.0 -1.14 -1.05 1.57)))
+  (mirror-config *l-arm-flipping-start-config*))
+
+(defun flipping-config (arm)
+  (ecase arm
+    (right-arm *r-arm-flipping-start-config*)
+    (left-arm *l-arm-flipping-start-config*)))
 
 ;;;
 ;;; START CONFIGURATIONS FOR GRASPING
 ;;;
-
-(defparameter *r-arm-grasping-configuration*
-  (cl-robot-models:make-robot-state
-   "Raphael" "PR2"
-   (make-joint-state-list
-    *r-arm-joint-names*
-    '(-1.964 -1.265 1.267 5.82 -0.263 -0.132 2.641))))
 
 (defparameter *l-arm-grasping-configuration*
   (cl-robot-models:make-robot-state
@@ -124,6 +206,9 @@
    (make-joint-state-list
     *l-arm-joint-names*
     '(0.593 1.265 0.964 0.524 -2.1 -0.067 4.419))))
+
+(defparameter *r-arm-grasping-configuration*
+  (resting-config 'right-arm))
 
 ;;;
 ;;; STANDARD POSITION CONTROLLERS FOR PR2 ARMS

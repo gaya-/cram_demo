@@ -41,6 +41,7 @@
                cram-reasoning
                cram-fccl
                cram-pr2-controllers
+               cram-uima
                cl-tf
                cl-feature-constraints
                cl-robot-models)
@@ -49,6 +50,7 @@
     :components
     ((:file "package")
      (:file "knowrob-utils" :depends-on ("package"))
+     (:file "uima" :depends-on ("package"))
      (:file "parameters" :depends-on ("package"))
      (:file "controllers" :depends-on ("package" "parameters"))
      (:file "tf" :depends-on ("package" "parameters"))

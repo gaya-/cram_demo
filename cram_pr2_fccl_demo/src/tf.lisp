@@ -29,11 +29,20 @@
 (in-package :pr2-fccl-demo)
 
 (defparameter *tf-broadcaster* nil)
+(defparameter *tf-listener* nil)
 
 (defun ensure-tf-broadcaster ()
   (unless *tf-broadcaster*
-    (setf *tf-broadcaster* (cl-tf:make-transform-broadcaster :topic *tf-relay-topic*))))
+    (setf *tf-broadcaster* (cl-tf:make-transform-broadcaster)))) ; :topic *tf-relay-topic*))))
 
 (defun get-tf-broadcaster ()
   (ensure-tf-broadcaster)
   *tf-broadcaster*)
+
+(defun ensure-tf-listener ()
+  (unless *tf-listener*
+    (setf *tf-listener* (make-instance 'cl-tf:transform-listener))))
+
+(defun get-tf-listener ()
+  (ensure-tf-listener)
+  *tf-listener*)

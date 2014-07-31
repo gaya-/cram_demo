@@ -99,6 +99,17 @@
           (cram-pr2-controllers:make-pr2-arm-position-controller-handle
            *r-arm-position-controller-action-name* *r-arm-joint-names*))))
 
+(defun ensure-position-controller (arm)
+  (ecase arm
+    (left-arm (ensure-left-arm-position-controller))
+    (right-arm (ensure-right-arm-position-controller))))
+
+(defun get-position-controller (arm)
+  (ensure-position-controller arm)
+  (ecase arm
+    (left-arm *l-arm-position-controller*)
+    (right-arm *r-arm-position-controller*)))
+
 (defun get-left-arm-position-controller ()
   (ensure-left-arm-position-controller)
   *l-arm-position-controller*)

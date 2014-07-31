@@ -210,10 +210,10 @@
 ;;; HAND-CODED FLIPPING DESCRIPTION
 ;;;
 
-(defun flipping-description ()
-  (mapcar (lambda (left right) (cons left right)) 
-          (left-arm-flipping-description) 
-          (right-arm-flipping-description)))
+(defun flipping-description (arm)
+  (ecase arm
+    (left-arm (left-arm-flipping-description))
+    (right-arm (right-arm-flipping-description))))
 
 (defun left-arm-flipping-description ()
   ;;; FEATURES
@@ -222,14 +222,14 @@
            :id "left spatula front"
            :frame-id "l_spatula_blade"
            :feature-type 'LINE
-           :origin (cl-transforms:make-3d-vector 0 0.0 0.0475)
+           :origin (cl-transforms:make-3d-vector 0 0 0.0475)
            :orientation (cl-transforms:make-3d-vector 0 1 0)))
         (spatula-main-axis
           (make-geometric-feature
            :id "left spatula main axis"
            :frame-id "l_spatula_blade"
            :feature-type 'LINE
-           :origin (cl-transforms:make-3d-vector 0 0.0 0.0)
+           :origin (cl-transforms:make-3d-vector 0 0.0 0)
            :orientation (cl-transforms:make-3d-vector 0 0 1)))
         (spatula-plane
           (make-geometric-feature
@@ -250,7 +250,7 @@
            :id "pancake center"
            :frame-id "pancake_maker"
            :feature-type 'PLANE
-           :origin (cl-transforms:make-3d-vector 0 0 0.00)
+           :origin (cl-transforms:make-3d-vector 0 0 0)
            :orientation (cl-transforms:make-3d-vector 0 0 1))))
     ;;; RELATIONS
     (let ((spatula-front-above-oven-relation
@@ -346,7 +346,7 @@
                 (make-feature-constraint
                  :id "spatula front above oven constraint"
                  :relation spatula-front-above-oven-relation
-                 :lower-boundary -0.005 :upper-boundary 0.01)
+                 :lower-boundary -0.02 :upper-boundary -0.01)
                 (make-feature-constraint
                  :id "spatula front left of pancake constraint"
                  :relation spatula-front-left-of-pancake
@@ -379,7 +379,7 @@
                 (make-feature-constraint
                  :id "spatula on oven constraint"
                  :relation spatula-above-oven
-                 :lower-boundary -0.01 :upper-boundary 0.01)
+                 :lower-boundary -0.02 :upper-boundary -0.01)
                 (make-feature-constraint
                  :id "spatula left of oven constraint"
                  :relation spatula-left-oven
@@ -474,7 +474,7 @@
            :id "oven center"
            :frame-id "pancake_maker"
            :feature-type 'PLANE
-           :origin (cl-transforms:make-3d-vector 0 0 0.05)
+           :origin (cl-transforms:make-3d-vector 0 0 0)
            :orientation (cl-transforms:make-3d-vector 0 0 1))))
     ;;; RELATIONS
     (let ((spatula-front-right-pancake
@@ -546,15 +546,15 @@
                 (make-feature-constraint
                  :id "right spatula front right of pancake constraint"
                  :relation spatula-front-right-pancake
-                 :lower-boundary 0.02 :upper-boundary 0.05)
+                 :lower-boundary 0.01 :upper-boundary 0.03)
                 (make-feature-constraint
                  :id "right spatula front above of oven constraint"
                  :relation spatula-front-above-oven
-                 :lower-boundary -0.05 :upper-boundary 0.01)
+                 :lower-boundary -0.02 :upper-boundary -0.01)
                 (make-feature-constraint
                  :id "right spatula front behind of pancake constraint"
                  :relation spatula-front-behind-pancake
-                 :lower-boundary -0.01 :upper-boundary 0.01)
+                 :lower-boundary -0.02 :upper-boundary 0.0)
                 (make-feature-constraint
                  :id "right spatula front parallel to oven surface"
                  :relation spatula-front-parallel-oven
@@ -619,33 +619,58 @@
 ;;; AUXILIARY FACTS FOR OUR DESIGNATORS
 ;;;
 
+(def-fact-group pr2-fccl-demo-utils (gripper-arm gripper-frame arm-gripper-frame
+                                                 controller-setup)
+  (<- (gripper-arm "r_gripper" right-arm))
+  (<- (gripper-arm "l_gripper" left-arm))
+  (<- (gripper-frame "r_gripper" "r_gripper_tool_frame"))
+  (<- (gripper-frame "l_gripper" "l_gripper_tool_frame"))
+  (<- (arm-gripper-frame ?arm ?gripper-frame)
+    (gripper-arm ?gripper ?arm)
+    (gripper-frame ?gripper ?gripper-frame))
+
+  (<- (controller-setup ?arm ?start ?stop ?fluent)
+    (lisp-fun controller-start ?arm ?start)
+    (lisp-fun controller-stop ?arm ?stop)
+    (lisp-fun controller-fluent ?arm ?fluent)))
+
 (def-fact-group pr2-fccl-demo-designators (action-desig)
   
-  (<- (action-desig ?desig (?motion ?r-start ?r-stop ?r-fluent))
+  (<- (action-desig ?desig (?motion ?start ?stop ?fluent))
     (constraints-desig? ?desig)
     (desig-prop ?desig (to pour))
+    (desig-prop ?desig (obj-acted-with ?obj-acted-with))
+    (desig-prop ?obj-acted-with (in ?gripper))
+    (gripper-arm ?gripper ?arm)
     (lisp-fun knowrob-pouring-description ?motion)
-    (lisp-fun controller-start right-arm ?r-start)
-    (lisp-fun controller-stop right-arm ?r-stop)
-    (lisp-fun controller-fluent right-arm ?r-fluent))
+    (controller-setup ?arm ?start ?stop ?fluent)
+    ;; (lisp-fun controller-start ?arm ?r-start)
+    ;; (lisp-fun controller-stop ?arm ?r-stop)
+    ;; (lisp-fun controller-fluent ?arm ?r-fluent)
+    )
 
-  (<- (action-desig ?desig (?motion ?l-start ?l-stop ?l-fluent ?r-start ?r-stop ?r-fluent))
+  (<- (action-desig ?desig (?l-motion ?l-start ?l-stop ?l-fluent ?r-motion ?r-start ?r-stop ?r-fluent))
     (constraints-desig? ?desig)
     (desig-prop ?desig (to flip))
-    (lisp-fun flipping-description ?motion)
-    (lisp-fun controller-start left-arm ?l-start)
-    (lisp-fun controller-stop left-arm ?l-stop)
-    (lisp-fun controller-fluent left-arm ?l-fluent)
-    (lisp-fun controller-start right-arm ?r-start)
-    (lisp-fun controller-stop right-arm ?r-stop)
-    (lisp-fun controller-fluent right-arm ?r-fluent))
+    (lisp-fun flipping-description left-arm ?l-motion)
+    (lisp-fun flipping-description right-arm ?r-motion)
+    (controller-setup left-arm ?l-start ?l-stop ?l-fluent)
+    (controller-setup right-arm ?r-start ?r-stop ?r-fluent)
+    ;; (lisp-fun controller-start left-arm ?l-start)
+    ;; (lisp-fun controller-stop left-arm ?l-stop)
+    ;; (lisp-fun controller-fluent left-arm ?l-fluent)
+    ;; (lisp-fun controller-start right-arm ?r-start)
+    ;; (lisp-fun controller-stop right-arm ?r-stop)
+    ;; (lisp-fun controller-fluent right-arm ?r-fluent)
+    )
 
   (<- (action-desig ?desig (?motion ?l-start ?l-stop ?l-fluent))
     (constraints-desig? ?desig)
     (desig-prop ?desig (to grasp))
     (lisp-fun grasping-description ?motion)
-    (lisp-fun controller-start left-arm ?l-start)
-    (lisp-fun controller-stop left-arm ?l-stop)
-    (lisp-fun controller-fluent left-arm ?l-fluent)
+    (controller-setup left-arm ?l-start ?l-stop ?l-fluent)
+    ;; (lisp-fun controller-start left-arm ?l-start)
+    ;; (lisp-fun controller-stop left-arm ?l-stop)
+    ;; (lisp-fun controller-fluent left-arm ?l-fluent)
 )
 )

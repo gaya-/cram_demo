@@ -1,16 +1,19 @@
 <launch>
 
   <arg name="marker-topic" default="fccl_viz/visualization_marker"/>
+  <arg name="simulation" default="1"/>
 
   <arg name="pouring" default="0"/>
   <arg name="flipping" default="0"/>
   <arg name="grasping" default="0"/>
  
-  <!-- table -->
-  <node name="table_model" pkg="cram_pr2_fccl_demo" 
-      type="table_model.py" args="/table">
-    <remap from="visualization_marker" to="$(arg marker-topic)"/>
-  </node>
+  <group if="$(arg simulation)">
+    <!-- table -->
+    <node name="table_model" pkg="cram_pr2_fccl_demo" 
+        type="table_model.py" args="/table">
+      <remap from="visualization_marker" to="$(arg marker-topic)"/>
+    </node>
+  </group>
 
   <group if="$(arg pouring)">
     <!-- oven -->

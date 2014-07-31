@@ -28,6 +28,8 @@
 
   <include file="$(find loopback_controller_manager_examples)/launch/load_pr2_standard_arm_action_controllers.launch"/>
 
+  <include file="$(find iai_velocity_controller_demux)/launch/pr2_arm_velocity_controller_demux.launch"/>
+
   <include file="$(find loopback_controller_manager_examples)/launch/load_pr2_joint_velocity_controllers.launch"/>
 
 
