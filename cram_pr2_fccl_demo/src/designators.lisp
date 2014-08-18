@@ -39,6 +39,121 @@
    "knowrob:'PancakeMaker'"))
 
 ;;;
+;;; HAND-CODED POURING DESCRIPTION
+;;;
+
+(defun pouring-description ()
+  ;; FEATURES
+  (let ((pancake-bottle-cap 
+          (make-geometric-feature
+           :id "'http://ias.cs.tum.edu/kb/knowrob.owl#Cone_L1Xfg6eB'"
+           :frame-id "/pancake_bottle"
+           :feature-type 'LINE
+           :origin (cl-transforms:make-3d-vector 0 0 0.097)
+           :orientation (cl-transforms:make-3d-vector 0 0 0.009)))
+        (pancake-maker-center
+          (make-geometric-feature
+           :id "'http://ias.cs.tum.edu/kb/knowrob.owl#FlatPhysicalSurface_AEFloDeh'"
+           :feature-type 'PLANE
+           :frame-id "/pancake_maker"
+           :origin (cl-transforms:make-identity-vector)
+           :orientation (cl-transforms:make-3d-vector 0 0 1))))
+    ;; RELATIONS
+    (let ((bottle-upright-relation
+            (make-feature-relation
+            :id "relation_'http://ias.cs.tum.edu/kb/motion-constraints.owl#PerpendicularityConstraint_qpdE8yUz'"
+            :frame-id "/torso_lift_link"
+            :function-type 'PERPENDICULAR
+            :tool-feature pancake-bottle-cap
+            :object-feature pancake-maker-center))
+          (cap-above-oven-relation
+            (make-feature-relation
+             :id "relation_'http://ias.cs.tum.edu/kb/motion-constraints.owl#HeightConstraint_OZjsDn3E'"
+             :frame-id "/torso_lift_link"
+             :function-type 'ABOVE
+             :tool-feature pancake-bottle-cap
+             :object-feature pancake-maker-center))
+          (cap-right-oven-relation
+            (make-feature-relation
+             :id "relation_'http://ias.cs.tum.edu/kb/motion-constraints.owl#RightOfConstraint_fePCJFEB'"
+             :frame-id "/torso_lift_link"
+             :function-type 'RIGHT
+             :tool-feature pancake-bottle-cap
+             :object-feature pancake-maker-center))
+          (cap-infront-oven-relation
+            (make-feature-relation
+             :id "relation_'http://ias.cs.tum.edu/kb/motion-constraints.owl#InFrontOfConstraint_Sv4UGtRm'"
+             :frame-id "/torso_lift_link"
+             :function-type 'INFRONT
+             :tool-feature pancake-bottle-cap
+             :object-feature pancake-maker-center)))
+      ;; MOTIONS
+      (let ((move-above-pan
+              (make-motion-phase
+               :id "'http://ias.cs.tum.edu/kb/motion-def.owl#MoveAbovePan'"
+               :constraints
+               (list
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#PerpendicularityConstraint_qpdE8yUz'"
+                 :relation bottle-upright-relation
+                 :lower-boundary 0.95 :upper-boundary 1.2)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#HeightConstraint_OZjsDn3E'"
+                 :relation cap-above-oven-relation
+                 :lower-boundary 0.25 :upper-boundary 0.3)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#HeightConstraint_OZjsDn3E'"
+                 :relation cap-right-oven-relation
+                 :lower-boundary -0.03 :upper-boundary 0.03)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#InFrontOfConstraint_Sv4UGtRm'"
+                 :relation cap-infront-oven-relation
+                 :lower-boundary -0.03 :upper-boundary 0.03))))
+            (tilt-bottle
+              (make-motion-phase
+               :id "'http://ias.cs.tum.edu/kb/motion-def.owl#TiltBottle'"
+               :constraints
+               (list
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-def.owl#TiltBottle'"
+                 :relation bottle-upright-relation
+                 :lower-boundary -0.5 :upper-boundary -0.4)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#HeightConstraint_OZjsDn3E'"
+                 :relation cap-above-oven-relation
+                 :lower-boundary 0.15 :upper-boundary 0.2)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#RightOfConstraint_fePCJFEB'"
+                 :relation cap-right-oven-relation
+                 :lower-boundary -0.03 :upper-boundary 0.03)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-def.owl#TiltBottle'"
+                 :relation cap-infront-oven-relation
+                 :lower-boundary -0.03 :upper-boundary 0.03))))
+            (tilt-back
+              (make-motion-phase
+               :id "'http://ias.cs.tum.edu/kb/motion-def.owl#TiltBack'"
+               :constraints
+               (list
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-def.owl#TiltBottle'"
+                 :relation bottle-upright-relation
+                 :lower-boundary 0.95 :upper-boundary 1.2)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#HeightConstraint_OZjsDn3E'"
+                 :relation cap-above-oven-relation
+                 :lower-boundary 0.25 :upper-boundary 0.3)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-constraints.owl#RightOfConstraint_fePCJFEB'"
+                 :relation cap-right-oven-relation
+                 :lower-boundary -0.03 :upper-boundary 0.03)
+                (make-feature-constraint
+                 :id "'http://ias.cs.tum.edu/kb/motion-def.owl#TiltBottle'"
+                 :relation cap-infront-oven-relation
+                 :lower-boundary -0.03 :upper-boundary 0.03)))))
+        (list move-above-pan tilt-bottle tilt-back)))))
+
+;;;
 ;;; HAND-CODED GRASPING DESCRIPTION
 ;;;
 
@@ -245,7 +360,7 @@
            :feature-type 'LINE
            :origin (cl-transforms:make-3d-vector 0 0.06 0)
            :orientation (cl-transforms:make-3d-vector 1 0 0)))
-        (oven-center
+        (oven-center ;; TODO(Georg): change into pancake center
           (make-geometric-feature
            :id "pancake center"
            :frame-id "pancake_maker"
@@ -259,7 +374,7 @@
              :frame-id "base_link"
              :function-type 'ABOVE
              :tool-feature spatula-front
-             :object-feature oven-center))
+             :object-feature oven-center)) ;; TODO(Georg): change into pancake-left-rim
           (spatula-front-left-of-pancake
             (make-feature-relation
              :id "spatula front edge left of pancake relation"
@@ -346,7 +461,8 @@
                 (make-feature-constraint
                  :id "spatula front above oven constraint"
                  :relation spatula-front-above-oven-relation
-                 :lower-boundary -0.02 :upper-boundary -0.01)
+;                 :lower-boundary -0.03 :upper-boundary -0.02)
+                 :lower-boundary -0.01 :upper-boundary 0.01)
                 (make-feature-constraint
                  :id "spatula front left of pancake constraint"
                  :relation spatula-front-left-of-pancake
@@ -379,7 +495,8 @@
                 (make-feature-constraint
                  :id "spatula on oven constraint"
                  :relation spatula-above-oven
-                 :lower-boundary -0.02 :upper-boundary -0.01)
+;                 :lower-boundary -0.03 :upper-boundary -0.02)
+                 :lower-boundary -0.01 :upper-boundary 0.01)
                 (make-feature-constraint
                  :id "spatula left of oven constraint"
                  :relation spatula-left-oven
@@ -540,7 +657,7 @@
                  :lower-boundary -0.3 :upper-boundary -0.2))))
             (right-spatula-touch-oven-motion
               (make-motion-phase
-               :id "right spatula above oven motion"
+               :id "right spatula touch oven motion"
                :constraints
                (list
                 (make-feature-constraint
@@ -550,7 +667,8 @@
                 (make-feature-constraint
                  :id "right spatula front above of oven constraint"
                  :relation spatula-front-above-oven
-                 :lower-boundary -0.02 :upper-boundary -0.01)
+;                 :lower-boundary -0.03 :upper-boundary -0.02)
+                 :lower-boundary -0.01 :upper-boundary 0.01)
                 (make-feature-constraint
                  :id "right spatula front behind of pancake constraint"
                  :relation spatula-front-behind-pancake
@@ -642,12 +760,8 @@
     (desig-prop ?desig (obj-acted-with ?obj-acted-with))
     (desig-prop ?obj-acted-with (in ?gripper))
     (gripper-arm ?gripper ?arm)
-    (lisp-fun knowrob-pouring-description ?motion)
-    (controller-setup ?arm ?start ?stop ?fluent)
-    ;; (lisp-fun controller-start ?arm ?r-start)
-    ;; (lisp-fun controller-stop ?arm ?r-stop)
-    ;; (lisp-fun controller-fluent ?arm ?r-fluent)
-    )
+    (lisp-fun pouring-description ?motion)
+    (controller-setup ?arm ?start ?stop ?fluent))
 
   (<- (action-desig ?desig (?l-motion ?l-start ?l-stop ?l-fluent ?r-motion ?r-start ?r-stop ?r-fluent))
     (constraints-desig? ?desig)
@@ -655,14 +769,7 @@
     (lisp-fun flipping-description left-arm ?l-motion)
     (lisp-fun flipping-description right-arm ?r-motion)
     (controller-setup left-arm ?l-start ?l-stop ?l-fluent)
-    (controller-setup right-arm ?r-start ?r-stop ?r-fluent)
-    ;; (lisp-fun controller-start left-arm ?l-start)
-    ;; (lisp-fun controller-stop left-arm ?l-stop)
-    ;; (lisp-fun controller-fluent left-arm ?l-fluent)
-    ;; (lisp-fun controller-start right-arm ?r-start)
-    ;; (lisp-fun controller-stop right-arm ?r-stop)
-    ;; (lisp-fun controller-fluent right-arm ?r-fluent)
-    )
+    (controller-setup right-arm ?r-start ?r-stop ?r-fluent))
 
   (<- (action-desig ?desig (?motion ?l-start ?l-stop ?l-fluent))
     (constraints-desig? ?desig)

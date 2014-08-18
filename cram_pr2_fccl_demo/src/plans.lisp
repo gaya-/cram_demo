@@ -135,7 +135,8 @@
                             (desig-props:pose ,pancake-bottle-pose)
                             (desig-props:in ,(arm->gripper pouring-arm))
                             (desig-props:child-frame-id "pancake_bottle")))))
-      (demo-part-pouring pancake-bottle pancake-maker))))
+      (demo-part-pouring pancake-bottle pancake-maker)))
+  (move-into-pouring-configuration pouring-arm))
 
 (cpl-impl:def-cram-function demo-part-pouring (pancake-mix pancake-maker)
   (with-designators ((desig (action `((type constraints) 
@@ -154,53 +155,43 @@
 ;;; FLIPPING
 ;;;
 
-(cpl-impl:def-cram-function spatula-calibration ()
-  (let ((l-spatula-pose
-           (cl-tf:make-pose-stamped
-            "l_gripper_tool_frame" 0
-            (cl-transforms:make-3d-vector -0.01 0.0 0.0)
-            (cl-transforms:make-identity-rotation)))
-         (r-spatula-pose
-           (cl-tf:make-pose-stamped
-            "r_gripper_tool_frame" 0
-            (cl-transforms:make-3d-vector 0.0 0.0 0.0)
-            (cl-transforms:q*
-             (cl-transforms:axis-angle->quaternion
-              (cl-transforms:make-3d-vector 0 1 0) 0.1)
-             (cl-transforms:axis-angle->quaternion 
-              (cl-transforms:make-3d-vector 1 0 0) PI)))))
-    (with-designators
-        ((l-spatula (cram-designators:object
-                     `((type "spatula")
-                       (desig-props:in "l_gripper")
-                       (desig-props:child-frame-id "l_spatula_handle")
-                       (desig-props:pose ,l-spatula-pose))))
-         (r-spatula (cram-designators:object
-                     `((type "spatula")
-                       (desig-props:in "r_gripper")
-                       (desig-props:child-frame-id "r_spatula_handle")
-                       (desig-props:pose ,r-spatula-pose)))))
-      (with-desig-tf-broadcasting (l-spatula r-spatula) 
-        nil))))
+(defparameter *l-spatula-pose*
+  (cl-tf:make-pose-stamped
+   "l_gripper_tool_frame" 0
+   (cl-transforms:make-3d-vector -0.03 0.0 0.0)
+   (cl-transforms:make-identity-rotation)))
+
+(defparameter *r-spatula-pose*
+  (cl-tf:make-pose-stamped
+   "r_gripper_tool_frame" 0
+   (cl-transforms:make-3d-vector -0.03 0.0 0.0)
+   (cl-transforms:axis-angle->quaternion 
+    (cl-transforms:make-3d-vector 1 0 0) PI)))
+
+(cpl-impl:def-cram-function spatula-calibration (&optional (time 5))
+  (with-designators
+      ((l-spatula (cram-designators:object
+                   `((type "spatula")
+                     (desig-props:in "l_gripper")
+                     (desig-props:child-frame-id "l_spatula_handle")
+                     (desig-props:pose ,*l-spatula-pose*))))
+       (r-spatula (cram-designators:object
+                   `((type "spatula")
+                     (desig-props:in "r_gripper")
+                     (desig-props:child-frame-id "r_spatula_handle")
+                     (desig-props:pose ,*r-spatula-pose*)))))
+    (with-desig-tf-broadcasting (l-spatula r-spatula) 
+      (cpl-impl:sleep* time))))
 
 (cpl-impl:def-cram-function sim-flipping-test ()
+  (move-into-flipping-configuration)
   (let* ((pancake-maker-pose-msg
           (cl-tf:pose-stamped->msg
            (cl-tf:make-pose-stamped
             "table" 0
             (cl-transforms:make-3d-vector -0.1 0.0 0.75)
             (cl-transforms:make-identity-rotation))))
-        (pancake-pose-msg pancake-maker-pose-msg) ; for simplicity's sake
-        (l-spatula-pose
-          (cl-tf:make-pose-stamped
-           "l_gripper_tool_frame" 0
-            (cl-transforms:make-3d-vector -0.03 0.0 0.0)
-            (cl-transforms:make-identity-rotation)))
-        (r-spatula-pose
-          (cl-tf:make-pose-stamped
-           "r_gripper_tool_frame" 0
-            (cl-transforms:make-3d-vector -0.03 0.0 0.0)
-            (cl-transforms:make-identity-rotation))))
+        (pancake-pose-msg pancake-maker-pose-msg)) ; for simplicity's sake
     (with-designators
         ((pancake-maker (cram-designators:object
                          `((type "Pancake_maker")
@@ -212,46 +203,32 @@
                      `((type "spatula")
                        (desig-props:in "l_gripper")
                        (desig-props:child-frame-id "l_spatula_handle")
-                       (desig-props:pose ,l-spatula-pose))))
+                       (desig-props:pose ,*l-spatula-pose*))))
          (r-spatula (cram-designators:object
                      `((type "spatula")
                        (desig-props:in "r_gripper")
                        (desig-props:child-frame-id "r_spatula_handle")
-                       (desig-props:pose ,r-spatula-pose)))))
-      (demo-part-flipping l-spatula r-spatula pancake pancake-maker))))
+                       (desig-props:pose ,*r-spatula-pose*)))))
+      (demo-part-flipping l-spatula r-spatula pancake pancake-maker)))
+  (move-into-flipping-configuration))
 
 (cpl-impl:def-cram-function real-flipping-test ()
-  (move-into-flipping-configuration)
-  (let* ((l-spatula-pose
-           (cl-tf:make-pose-stamped
-            "l_gripper_tool_frame" 0
-            (cl-transforms:make-3d-vector -0.01 0.0 0.0)
-            (cl-transforms:make-identity-rotation)))
-         (r-spatula-pose
-           (cl-tf:make-pose-stamped
-            "r_gripper_tool_frame" 0
-            (cl-transforms:make-3d-vector 0.0 0.0 0.0)
-            (cl-transforms:q*
-             (cl-transforms:axis-angle->quaternion
-              (cl-transforms:make-3d-vector 0 1 0) 0.1)
-             (cl-transforms:axis-angle->quaternion 
-              (cl-transforms:make-3d-vector 1 0 0) PI))))
-         (percepts (cram-uima:query-uima-and-wait (get-uima)))
+  (let* ((percepts (cram-uima:query-uima-and-wait (get-uima)))
          (pancake (find-desig percepts 'desig-props:type "pancake"))
          (pancake-maker (find-desig percepts 'desig-props:type "Pancake_maker")))
+    (unless pancake (cpl-impl:fail "Did not detect pancake."))
+    (unless pancake-maker (cpl-impl:fail "Did not detect pancake maker."))
     (with-designators
         ((l-spatula (cram-designators:object
                      `((type "spatula")
                        (desig-props:in "l_gripper")
                        (desig-props:child-frame-id "l_spatula_handle")
-                       (desig-props:pose ,l-spatula-pose))))
+                       (desig-props:pose ,*l-spatula-pose*))))
          (r-spatula (cram-designators:object
                      `((type "spatula")
                        (desig-props:in "r_gripper")
                        (desig-props:child-frame-id "r_spatula_handle")
-                       (desig-props:pose ,r-spatula-pose)))))
-      (unless pancake (cpl-impl:fail "Did not detect pancake."))
-      (unless pancake-maker (cpl-impl:fail "Did not detect pancake maker."))
+                       (desig-props:pose ,*r-spatula-pose*)))))
       (demo-part-flipping l-spatula r-spatula pancake pancake-maker))))
 
 (cpl-impl:def-cram-function demo-part-flipping 
@@ -261,12 +238,14 @@
                          r-motions r-start-controller r-stop-controller r-finished-fluent)
         (reference desig)
       (with-desig-tf-broadcasting (pancake pancake-maker l-spatula r-spatula)
+        (move-into-flipping-configuration)
         (with-vel-controllers
           (loop for l-motion in l-motions
                 for r-motion in r-motions do
                   (execute-dual-arm-constraint-motion
                    l-motion l-finished-fluent l-start-controller l-stop-controller
-                   r-motion r-finished-fluent r-start-controller r-stop-controller)))))))
+                   r-motion r-finished-fluent r-start-controller r-stop-controller)))
+        (move-into-flipping-configuration)))))
 
 ;;;
 ;;; GRASPING
