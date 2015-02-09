@@ -1,6 +1,0 @@
-#!/usr/bin/env sh
-"true"; exec /usr/bin/env sbcl --noinform --load `rospack find roslisp`/scripts/roslisp-sbcl-init --script "$0" "$@"
-
-(ros-load:load-system "cram_saphari_review_year2" "saphari-utility-nodes")
-
-(saphari-utility-nodes::human-tf-converter)

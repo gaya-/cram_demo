@@ -1,3 +1,0 @@
-<launch>
-  <node pkg="cram_saphari_review_year2" type="human_tf_converter" name="human_tf_converter" output="screen"/>
-</launch>

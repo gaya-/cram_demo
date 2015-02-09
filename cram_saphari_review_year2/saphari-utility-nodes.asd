@@ -15,4 +15,4 @@
       :components
       ((:file "package")
        (:file "message-conversions" :depends-on ("package"))
-       (:file "human-tf-converter" :depends-on ("package" "message-conversions"))))))))
+       (:file "human-state-publisher" :depends-on ("package" "message-conversions"))))))))
