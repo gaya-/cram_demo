@@ -11,7 +11,8 @@
                :cram-utilities
                :cram-reasoning
                :designators
-               :roslisp-beasty)
+               :cram-language-designator-support
+               :roslisp)
   :components
   ((:module "cram-saphari"
             :components

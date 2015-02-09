@@ -29,7 +29,15 @@
 (in-package :cram-saphari)
 
 (cut:define-hook cram-language::on-start-human-tracking (human-desig))
-(cut:define-hook cram-language::on-stop-human-tracking (log-id human-desig))
+(cut:define-hook cram-language::on-stop-human-tracking (id human-desig))
+
+(defun start-tracking-human (human-desig)
+  ;; TODO(Georg): implement me!
+  (format t "start-tracking-human: ~a~%" human-desig))
+
+(defun stop-tracking-humans (&rest human-desigs)
+  ;; TODO(Georg): implement me!
+  (format t "stop-tracking-human: ~a~%" human-desigs))
 
 (defparameter *humans-fluent* 
   (cram-language-implementation:make-fluent :name "humans-fluent"))
@@ -63,15 +71,75 @@
    :new-properties (desig:merge-desig-descriptions *test-desig0* '((:user-id 1)))
    :data-object *test-percept2*))
 
+(defparameter *test-desigs*
+  (list *test-desig0* *test-desig1*))
+
 (defun human-detected-p (human-percept)
   "Predicate to check whether `human-percept' represents a detected human."
-  (not (= (getf human-percept :user-id) -1)))
+  (and (getf human-percept :user-id)
+       (not (= (getf human-percept :user-id) -1))))
 
 (defun human-percept-matches-desig-p (human-percept human-desig)
   "Predicate checking whether `human-percept' matches the description of `human-desig'."
-  (and (= (desig:desig-prop-value human-desig :user-id)
+  (and (getf human-percept :user-id)
+       (desig:desig-prop-value human-desig :user-id)
+       (= (desig:desig-prop-value human-desig :user-id)
           (getf human-percept :user-id))))
 
-(defun find-matching-human-designator (human-percept human-desigs)
+(defun find-matching-human-desig (human-percept human-desigs)
   "Returns the designator in `human-desigs' which matches `human-percept'."
   (find human-percept human-desigs :test #'human-percept-matches-desig-p))
+
+(defun maybe-remove-desigs (desigs &optional (timeout 2.0))
+  "Checks whether any of the human designators in `desigs' has not been detected 
+ for more than `timeout' seconds. Any designator that is old will be removed from
+ `desigs'. Returns the new list of desigs."
+  (declare (type list desigs))
+  (flet ((too-old-p (desig now timeout)
+           (let ((last-timestamp (desig:desig-prop-value desig :last-detected)))
+             (and last-timestamp (> (- now last-timestamp) timeout)))))
+    (let* ((now (roslisp:ros-time))
+           (old-desigs (remove-if-not (alexandria:rcurry #'too-old-p now timeout) desigs))
+           (ok-desigs (remove-if (alexandria:rcurry #'too-old-p now timeout) desigs)))
+      (apply #'stop-tracking-human old-desigs)
+      ok-desigs)))
+
+(defun add-new-human-desig (percept desigs)
+  "Creates a new human designator out of `percept' and appends it to the list
+ human designators `desigs'. `percept' shall be a plist. Returns the new `desigs'."
+  (declare (type list percept desigs))
+  (cpl-desig-supp:with-designators 
+      ((new-desig (desig:human `((:tracker :openni)
+                                 (:user-id ,(getf percept :user-id))
+                                 (:first-detected ,(getf percept :stamp))
+                                 (:last-detected ,(getf percept :stamp))))))
+    (let ((effective-desig
+            (desig:equate 
+             new-desig (desig:make-effective-designator new-desig :data-object percept))))
+      (start-tracking-human new-desig)
+      (cons effective-desig desigs))))
+
+(defun update-existing-desig (percept desigs)
+  "Updates the first human designator in the list of human designators `desigs' which
+ matches `percept' with a new effective designator. Assumes such a matching designator
+ exists. Returns the new `desigs'."
+  (let* ((old-desig (find-matching-human-desig percept desigs))
+         (new-description (cram-designators:merge-desig-descriptions old-desig `((:last-detected ,(getf percept :stamp)))))
+         (new-desig (desig:make-effective-designator 
+                     old-desig :new-properties new-description :data-object percept)))
+    (desig:equate old-desig new-desig)
+    (substitute new-desig old-desig desigs)))
+
+(defun update-human-desigs (percept desigs)
+  ;; TODO(Georg): comment me!
+  (if (human-detected-p percept)
+      (if (find-matching-human-desig percept desigs)
+          ;; CASE 1: PERCEPT AND MATCHING DESIG -> UPDATE DESIG
+          (update-existing-desig percept desigs)
+          ;; CASE 2: PERCEPT AND NO MATCHING DESIG -> ADD DESIG
+          (add-new-desig percept desigs))
+      (if (not desigs)
+          ;; CASE 3: NO PERCEPT AND NO DESIGS -> DO NOTHING 
+          nil
+          ;; CASE 4: NO PERCEPT AND SOME DESIGS -> MAYBE REMOVE DESIG
+          (maybe-remove-desigs desigs))))
