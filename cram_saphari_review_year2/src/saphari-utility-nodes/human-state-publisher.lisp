@@ -27,43 +27,13 @@
 ;;; POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :saphari-utility-nodes)
+        
+(defun human-callback (broadcaster human-msg)
+  (apply #'send-transform broadcaster
+         (human->stamped-transforms (from-msg human-msg))))
 
-(defgeneric from-msg (msg))
-
-(defmethod from-msg ((msg saphari_msgs-msg:human))
-  (with-fields (userid (stamp (stamp header)) (frame-id (frame_id header)) bodyparts) msg
-    (unless (= userid -1)
-      `(:user-id ,userid :stamp ,stamp :frame-id ,frame-id
-        :bodyparts ,(mapcar #'from-msg (coerce bodyparts 'list))))))
-
-(defmethod from-msg ((msg saphari_msgs-msg:bodypart))
-  (with-fields (label centroid) msg
-    `(:label ,(bodypart-code->keyword label) 
-      :centroid ,(from-msg centroid))))
-
-(defmethod from-msg ((msg geometry_msgs-msg:point32))
-  (with-fields (x y z) msg
-    (cl-transforms:make-3d-vector x y z)))
-
-(defun bodypart-code->keyword (bodypart-code)
-  (first
-   (find bodypart-code
-         (roslisp-msg-protocol:symbol-codes 'saphari_msgs-msg:bodypart) 
-         :key #'rest :test #'=)))
-
-(defun human->stamped-transforms (human)
-  (when human
-    (destructuring-bind (&key user-id stamp frame-id bodyparts) human
-      (mapcar (rcurry #'bodypart->stamped-transform user-id stamp frame-id) bodyparts))))
-           
-(defun bodypart->stamped-transform (bodypart user-id stamp frame-id)
-  (destructuring-bind (&key label centroid) bodypart
-    (make-stamped-transform 
-     frame-id (make-bodypart-frame-id label user-id) stamp
-     (cl-transforms:make-transform centroid (cl-transforms:make-identity-rotation)))))
-
-(defun make-bodypart-frame-id (label user-id)
-  (concatenate 'string (make-tf-prefix user-id) (string-downcase (string label))))
-
-(defun make-tf-prefix (user-id)
-  (concatenate 'string "/human" (write-to-string user-id) "/"))
+(defun human-state-publisher ()
+  (with-ros-node ("human-state-publisher" :spin t)
+    (subscribe 
+     "/saphari/human" "saphari_msgs/Human"
+     (curry #'human-callback (make-transform-broadcaster)))))
