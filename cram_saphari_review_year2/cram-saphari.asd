@@ -7,10 +7,14 @@
   :maintainer "Georg Bartels <georg.bartels@cs.uni-bremen.de>"
   :licence "BSD"
   :description "CRAM code for Saphari development"
-  :depends-on (:cram-reasoning
-               :cram-beasty)
+  :depends-on (:cram-language
+               :cram-utilities
+               :cram-reasoning
+               :designators
+               :roslisp-beasty)
   :components
   ((:module "cram-saphari"
             :components
             ((:file "package")
+             (:file "human-tracking" :depends-on ("package"))
              (:file "beasty-predicates" :depends-on ("package"))))))
