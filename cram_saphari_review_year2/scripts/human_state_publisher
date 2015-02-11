@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 "true"; exec /usr/bin/env sbcl --noinform --load `rospack find roslisp`/scripts/roslisp-sbcl-init --script "$0" "$@"
 
-(ros-load:load-system "cram_saphari_review_year2" "saphari-utility-nodes")
+(ros-load:load-system "cram_saphari_review_year2" "human-state-publisher")
 
-(saphari-utility-nodes::human-state-publisher)
+(human-state-publisher::main)

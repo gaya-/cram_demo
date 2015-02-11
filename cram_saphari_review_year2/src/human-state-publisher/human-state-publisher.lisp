@@ -26,13 +26,13 @@
 ;;; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ;;; POSSIBILITY OF SUCH DAMAGE.
 
-(in-package :saphari-utility-nodes)
+(in-package :human-state-publisher)
         
 (defun human-callback (broadcaster human-msg)
   (apply #'send-transform broadcaster
          (human->stamped-transforms (from-msg human-msg))))
 
-(defun human-state-publisher ()
+(defun main ()
   (with-ros-node ("human-state-publisher" :spin t)
     (subscribe 
      "/saphari/human" "saphari_msgs/Human"
