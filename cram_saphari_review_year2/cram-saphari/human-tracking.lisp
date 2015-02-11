@@ -68,27 +68,8 @@
   (list *test-desig0* *test-desig1*))
 
 ;;;
-;;; UTILS
-;;;
-
-(defun separate-seq (predicate sequence)
-  (values
-   (remove-if predicate sequence)
-   (remove-if-not predicate sequence)))
-;;;
 ;;; ACTUAL HUMAN DESIGNATOR STUFF
 ;;;
-
-(cut:define-hook cram-language::on-start-human-tracking (human-desig))
-(cut:define-hook cram-language::on-stop-human-tracking (id human-desig))
-
-(defun start-tracking-human (human-desig)
-  ;; TODO(Georg): implement me!
-  (format t "start-tracking-human: ~a~%" human-desig))
-
-(defun stop-tracking-human (human-desig)
-  ;; TODO(Georg): implement me!
-  (format t "stop-tracking-human: ~a~%" human-desig))
 
 (defun human-detected-p (human-percept)
   "Predicate to check whether `human-percept' represents a detected human."
@@ -111,21 +92,12 @@
   "Returns the designator in `human-desigs' which matches `human-percept'."
   (find human-percept human-desigs :test #'human-percept-matches-desig-p))
 
-(defun maybe-remove-human-desigs (desigs timeout now)
+(defun remove-old-human-desigs (desigs timeout now)
   "Checks whether any of the human designators in `desigs' has not been detected 
- for more than `timeout' seconds. Any designator that is old will be removed from
- `desigs'. Returns the new list of desigs."
+ for more than `timeout' seconds. Uses `now' as the current timestamp. Any designator 
+ that is old will be removed from `desigs'. Returns the new list of desigs."
   (declare (type list desigs))
-;  (flet ((too-old-p (desig now timeout)
-;           (let ((last-timestamp (desig:desig-prop-value desig :last-detected)))
-;             (and last-timestamp (> (- now last-timestamp) timeout)))))
-    (multiple-value-bind (old-desigs ok-desigs)
-        (separate-seq (alexandria:rcurry #'human-desig-too-old-p now timeout) desigs)
-;    (let ((old-desigs (remove-if-not (alexandria:rcurry #'too-old-p now timeout) desigs))
-;          (ok-desigs (remove-if (alexandria:rcurry #'too-old-p now timeout) desigs)))
-      (mapcar #'stop-tracking-human old-desigs)
-      ok-desigs))
-;)
+  (remove-if (alexandria:rcurry #'human-desig-too-old-p now timeout) desigs))
 
 (defun add-new-human-desig (percept desigs)
   "Creates a new human designator out of `percept' and appends it to the list
@@ -139,7 +111,6 @@
     (let ((effective-desig
             (desig:equate 
              new-desig (desig:make-effective-designator new-desig :data-object percept))))
-      (start-tracking-human new-desig)
       (cons effective-desig desigs))))
 
 (defun update-existing-desig (percept desigs)
@@ -165,4 +136,18 @@
           ;; CASE 3: NO PERCEPT AND NO DESIGS -> DO NOTHING 
           nil
           ;; CASE 4: NO PERCEPT AND SOME DESIGS -> MAYBE REMOVE DESIG
-          (maybe-remove-human-desigs desigs timeout now))))
+          (remove-old-human-desigs desigs timeout now))))
+
+(cram-language-implementation:declare-goal track (humans-fluent percepts-fluent)
+  (declare (ignore humans-fluent percepts-fluent)))
+
+(cram-language-implementation:def-goal (track ?humans-fluent ?percepts-fluent)
+  (declare (ignore ?humans-fluent ?percepts-fluent))
+  (format t "Trying to track human from percepts~%"))
+
+(defun main ()
+  (roslisp:with-ros-node ("saphari-demo" :spin t)
+    (cpl-impl:top-level
+      (let ((humans-fluent 1)
+            (percepts-fluent 2))
+        (track humans-fluent percepts-fluent)))))
