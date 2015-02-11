@@ -28,16 +28,9 @@
 
 (in-package :cram-saphari)
 
-(cut:define-hook cram-language::on-start-human-tracking (human-desig))
-(cut:define-hook cram-language::on-stop-human-tracking (id human-desig))
-
-(defun start-tracking-human (human-desig)
-  ;; TODO(Georg): implement me!
-  (format t "start-tracking-human: ~a~%" human-desig))
-
-(defun stop-tracking-humans (&rest human-desigs)
-  ;; TODO(Georg): implement me!
-  (format t "stop-tracking-human: ~a~%" human-desigs))
+;;;
+;;; TEST DATA
+;;;
 
 (defparameter *humans-fluent* 
   (cram-language-implementation:make-fluent :name "humans-fluent"))
@@ -74,6 +67,29 @@
 (defparameter *test-desigs*
   (list *test-desig0* *test-desig1*))
 
+;;;
+;;; UTILS
+;;;
+
+(defun separate-seq (predicate sequence)
+  (values
+   (remove-if predicate sequence)
+   (remove-if-not predicate sequence)))
+;;;
+;;; ACTUAL HUMAN DESIGNATOR STUFF
+;;;
+
+(cut:define-hook cram-language::on-start-human-tracking (human-desig))
+(cut:define-hook cram-language::on-stop-human-tracking (id human-desig))
+
+(defun start-tracking-human (human-desig)
+  ;; TODO(Georg): implement me!
+  (format t "start-tracking-human: ~a~%" human-desig))
+
+(defun stop-tracking-human (human-desig)
+  ;; TODO(Georg): implement me!
+  (format t "stop-tracking-human: ~a~%" human-desig))
+
 (defun human-detected-p (human-percept)
   "Predicate to check whether `human-percept' represents a detected human."
   (and (getf human-percept :user-id)
@@ -86,23 +102,30 @@
        (= (desig:desig-prop-value human-desig :user-id)
           (getf human-percept :user-id))))
 
+(defun human-desig-too-old-p (desig now timeout)
+  (declare (type cram-designators:human-designator desig))
+  (let ((last-timestamp (desig:desig-prop-value desig :last-detected)))
+    (and last-timestamp (> (- now last-timestamp) timeout))))
+
 (defun find-matching-human-desig (human-percept human-desigs)
   "Returns the designator in `human-desigs' which matches `human-percept'."
   (find human-percept human-desigs :test #'human-percept-matches-desig-p))
 
-(defun maybe-remove-desigs (desigs &optional (timeout 2.0))
+(defun maybe-remove-human-desigs (desigs timeout now)
   "Checks whether any of the human designators in `desigs' has not been detected 
  for more than `timeout' seconds. Any designator that is old will be removed from
  `desigs'. Returns the new list of desigs."
   (declare (type list desigs))
-  (flet ((too-old-p (desig now timeout)
-           (let ((last-timestamp (desig:desig-prop-value desig :last-detected)))
-             (and last-timestamp (> (- now last-timestamp) timeout)))))
-    (let* ((now (roslisp:ros-time))
-           (old-desigs (remove-if-not (alexandria:rcurry #'too-old-p now timeout) desigs))
-           (ok-desigs (remove-if (alexandria:rcurry #'too-old-p now timeout) desigs)))
-      (apply #'stop-tracking-human old-desigs)
-      ok-desigs)))
+;  (flet ((too-old-p (desig now timeout)
+;           (let ((last-timestamp (desig:desig-prop-value desig :last-detected)))
+;             (and last-timestamp (> (- now last-timestamp) timeout)))))
+    (multiple-value-bind (old-desigs ok-desigs)
+        (separate-seq (alexandria:rcurry #'human-desig-too-old-p now timeout) desigs)
+;    (let ((old-desigs (remove-if-not (alexandria:rcurry #'too-old-p now timeout) desigs))
+;          (ok-desigs (remove-if (alexandria:rcurry #'too-old-p now timeout) desigs)))
+      (mapcar #'stop-tracking-human old-desigs)
+      ok-desigs))
+;)
 
 (defun add-new-human-desig (percept desigs)
   "Creates a new human designator out of `percept' and appends it to the list
@@ -130,16 +153,16 @@
     (desig:equate old-desig new-desig)
     (substitute new-desig old-desig desigs)))
 
-(defun update-human-desigs (percept desigs)
+(defun update-human-desigs (percept desigs &key (timeout 2.0) (now (roslisp:ros-time)))
   ;; TODO(Georg): comment me!
   (if (human-detected-p percept)
       (if (find-matching-human-desig percept desigs)
           ;; CASE 1: PERCEPT AND MATCHING DESIG -> UPDATE DESIG
           (update-existing-desig percept desigs)
           ;; CASE 2: PERCEPT AND NO MATCHING DESIG -> ADD DESIG
-          (add-new-desig percept desigs))
+          (add-new-human-desig percept desigs))
       (if (not desigs)
           ;; CASE 3: NO PERCEPT AND NO DESIGS -> DO NOTHING 
           nil
           ;; CASE 4: NO PERCEPT AND SOME DESIGS -> MAYBE REMOVE DESIG
-          (maybe-remove-desigs desigs))))
+          (maybe-remove-human-desigs desigs timeout now))))

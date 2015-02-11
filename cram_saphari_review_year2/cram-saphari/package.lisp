@@ -29,4 +29,5 @@
 (in-package :cl-user)
 
 (defpackage cram-saphari
-  (:use #:common-lisp #:cram-reasoning))
+  (:use #:common-lisp #:cram-reasoning #:desig)
+  (:export :update-human-desigs))
