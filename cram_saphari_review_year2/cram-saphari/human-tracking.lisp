@@ -138,16 +138,17 @@
           ;; CASE 4: NO PERCEPT AND SOME DESIGS -> MAYBE REMOVE DESIG
           (remove-old-human-desigs desigs timeout now))))
 
-(cram-language-implementation:declare-goal track (humans-fluent percepts-fluent)
+(declare-goal track (humans-fluent percepts-fluent)
   (declare (ignore humans-fluent percepts-fluent)))
 
-(cram-language-implementation:def-goal (track ?humans-fluent ?percepts-fluent)
+(def-goal (track ?humans-fluent ?percepts-fluent)
   (declare (ignore ?humans-fluent ?percepts-fluent))
   (format t "Trying to track human from percepts~%"))
 
 (defun main ()
-  (roslisp:with-ros-node ("saphari-demo" :spin t)
-    (cpl-impl:top-level
+  (with-ros-node ("saphari-demo" :spin t)
+    (top-level
       (let ((humans-fluent 1)
-            (percepts-fluent 2))
-        (track humans-fluent percepts-fluent)))))
+            (percept-fluent (make-fluent :name "human-percept-fluent")))
+        (subscribe "/saphari/human" "saphari_msgs/Human" #'from-msg)
+        (track humans-fluent percept-fluent)))))

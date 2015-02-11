@@ -29,5 +29,5 @@
 (in-package :cl-user)
 
 (defpackage cram-saphari
-  (:use #:common-lisp #:cram-reasoning #:desig)
-  (:export :update-human-desigs))
+  (:use :common-lisp :desig :roslisp :saphari-msgs-conversions)
+  (:import-from :cram-language :make-fluent :top-level :def-goal :declare-goal))
