@@ -14,5 +14,4 @@
     ((:module "human-state-publisher"
       :components
       ((:file "package")
-       (:file "message-conversions" :depends-on ("package"))
-       (:file "human-state-publisher" :depends-on ("package" "message-conversions"))))))))
+       (:file "human-state-publisher" :depends-on ("package"))))))))
