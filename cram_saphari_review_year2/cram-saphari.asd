@@ -9,7 +9,7 @@
   :description "CRAM code for Saphari development"
   :depends-on (:cram-language
                :cram-utilities
-               :cram-reasoning
+               :cram-beliefstate
                :designators
                :cram-language-designator-support
                :roslisp

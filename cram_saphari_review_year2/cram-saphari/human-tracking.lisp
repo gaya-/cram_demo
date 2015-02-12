@@ -56,12 +56,12 @@
   (list *test-percept0* *test-percept1* *test-percept2* *test-percept3* *test-percept4*))
 
 (defparameter *test-desig0*
-  (desig:make-designator 'desig:human '((:tracker :openni))))
+  (make-designator 'human '((:tracker :openni))))
 
 (defparameter *test-desig1*
-  (desig:make-effective-designator
+  (make-effective-designator
    *test-desig0*
-   :new-properties (desig:merge-desig-descriptions *test-desig0* '((:user-id 1)))
+   :new-properties (merge-desig-descriptions *test-desig0* '((:user-id 1)))
    :data-object *test-percept2*))
 
 (defparameter *test-desigs*
@@ -79,13 +79,15 @@
 (defun human-percept-matches-desig-p (human-percept human-desig)
   "Predicate checking whether `human-percept' matches the description of `human-desig'."
   (and (getf human-percept :user-id)
-       (desig:desig-prop-value human-desig :user-id)
-       (= (desig:desig-prop-value human-desig :user-id)
+       (desig-prop-value human-desig :user-id)
+       (= (desig-prop-value human-desig :user-id)
           (getf human-percept :user-id))))
 
 (defun human-desig-too-old-p (desig now timeout)
   (declare (type cram-designators:human-designator desig))
-  (let ((last-timestamp (desig:desig-prop-value desig :last-detected)))
+  (let ((last-timestamp (desig-prop-value desig :last-detected)))
+    (format t "NOW : ~a~%LAST: ~a~%DIFF: ~a~%~%"
+            last-timestamp now (- now last-timestamp))
     (and last-timestamp (> (- now last-timestamp) timeout))))
 
 (defun find-matching-human-desig (human-percept human-desigs)
@@ -103,14 +105,15 @@
   "Creates a new human designator out of `percept' and appends it to the list
  human designators `desigs'. `percept' shall be a plist. Returns the new `desigs'."
   (declare (type list percept desigs))
+  (format t "~%~%ADDING NEW HUMAN~%~%")
   (cpl-desig-supp:with-designators 
-      ((new-desig (desig:human `((:tracker :openni)
-                                 (:user-id ,(getf percept :user-id))
-                                 (:first-detected ,(getf percept :stamp))
-                                 (:last-detected ,(getf percept :stamp))))))
+      ((new-desig (human `((:tracker :openni)
+                           (:user-id ,(getf percept :user-id))
+                           (:tf-prefix ,(make-human-tf-prefix (getf percept :user-id)))
+                           (:first-detected ,(getf percept :stamp))
+                           (:last-detected ,(getf percept :stamp))))))
     (let ((effective-desig
-            (desig:equate 
-             new-desig (desig:make-effective-designator new-desig :data-object percept))))
+            (equate new-desig (make-effective-designator new-desig :data-object percept))))
       (cons effective-desig desigs))))
 
 (defun update-existing-desig (percept desigs)
@@ -118,13 +121,14 @@
  matches `percept' with a new effective designator. Assumes such a matching designator
  exists. Returns the new `desigs'."
   (let* ((old-desig (find-matching-human-desig percept desigs))
-         (new-description (cram-designators:merge-desig-descriptions old-desig `((:last-detected ,(getf percept :stamp)))))
-         (new-desig (desig:make-effective-designator 
+         (new-description (merge-desig-descriptions old-desig `((:last-detected ,(getf percept :stamp)))))
+         (new-desig (make-effective-designator 
                      old-desig :new-properties new-description :data-object percept)))
-    (desig:equate old-desig new-desig)
+    (equate old-desig new-desig)
     (substitute new-desig old-desig desigs)))
 
-(defun update-human-desigs (percept desigs &key (timeout 2.0) (now (roslisp:ros-time)))
+(defun update-human-desigs (percept desigs &key (timeout 0.5) (now (roslisp:ros-time)))
+  (declare (ignore timeout now))
   ;; TODO(Georg): comment me!
   (if (human-detected-p percept)
       (if (find-matching-human-desig percept desigs)
@@ -136,19 +140,31 @@
           ;; CASE 3: NO PERCEPT AND NO DESIGS -> DO NOTHING 
           nil
           ;; CASE 4: NO PERCEPT AND SOME DESIGS -> MAYBE REMOVE DESIG
-          (remove-old-human-desigs desigs timeout now))))
+          ;(remove-old-human-desigs desigs timeout now)
+          ;; HACK: REMOVING ALL DESIGS
+          nil
+          )))
 
-(declare-goal track (humans-fluent percepts-fluent)
-  (declare (ignore humans-fluent percepts-fluent)))
+(declare-goal track (human-desigs human-percept)
+  (declare (ignore human-desigs human-percept)))
 
-(def-goal (track ?humans-fluent ?percepts-fluent)
-  (declare (ignore ?humans-fluent ?percepts-fluent))
-  (format t "Trying to track human from percepts~%"))
+(def-goal (track ?human-desigs ?human-percept)
+  (declare (type cram-language-implementation:fluent ?human-desigs ?human-percept))
+  (format t "Starting to track humans from percepts~%")
+  (whenever ((pulsed ?human-percept))
+    (setf (value ?human-desigs)
+          (update-human-desigs (value ?human-percept) (value ?human-desigs)))))
 
 (defun main ()
-  (with-ros-node ("saphari-demo" :spin t)
+  (with-ros-node ("saphari_demo" :spin t)
     (top-level
-      (let ((humans-fluent 1)
+      (let ((desigs-fluent (make-fluent :name "human-desigs-fluent"))
             (percept-fluent (make-fluent :name "human-percept-fluent")))
-        (subscribe "/saphari/human" "saphari_msgs/Human" #'from-msg)
-        (track humans-fluent percept-fluent)))))
+        (subscribe "/saphari/human" "saphari_msgs/Human" 
+                   (lambda (msg) (setf (value percept-fluent) (from-msg msg))))
+        (track desigs-fluent percept-fluent)))))
+
+(defun dump-files ()
+  (with-ros-node ("saphari_demo")
+    (beliefstate:extract-files)))
+          

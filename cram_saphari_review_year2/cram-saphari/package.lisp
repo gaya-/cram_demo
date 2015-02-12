@@ -30,4 +30,6 @@
 
 (defpackage cram-saphari
   (:use :common-lisp :desig :roslisp :saphari-msgs-conversions)
-  (:import-from :cram-language :make-fluent :top-level :def-goal :declare-goal))
+  (:import-from :cram-language 
+   :make-fluent :top-level :def-goal :declare-goal :whenever :pulsed)
+  (:import-from :cram-language-implementation :value))
