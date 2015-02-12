@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find cram_saphari_review_year2)/launch/human_state_publisher.launch"/>
+
+  <node pkg="tf" type="static_transform_publisher" name="fake_localization" 
+    args="0 0 0 0 0 0 map odom 100" />
+</launch>
