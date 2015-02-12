@@ -94,7 +94,7 @@
   "Returns the designator in `human-desigs' which matches `human-percept'."
   (find human-percept human-desigs :test #'human-percept-matches-desig-p))
 
-(defun remove-old-human-desigs (desigs timeout now)
+(defun remove-old-human-desigs (desigs &key (timeout 0.5) (now (roslisp:ros-time)))
   "Checks whether any of the human designators in `desigs' has not been detected 
  for more than `timeout' seconds. Uses `now' as the current timestamp. Any designator 
  that is old will be removed from `desigs'. Returns the new list of desigs."
@@ -127,33 +127,28 @@
     (equate old-desig new-desig)
     (substitute new-desig old-desig desigs)))
 
-(defun update-human-desigs (percept desigs &key (timeout 0.5) (now (roslisp:ros-time)))
-  (declare (ignore timeout now))
+(defun update-human-desigs (percept desigs)
   ;; TODO(Georg): comment me!
-  (if (human-detected-p percept)
-      (if (find-matching-human-desig percept desigs)
-          ;; CASE 1: PERCEPT AND MATCHING DESIG -> UPDATE DESIG
-          (update-existing-desig percept desigs)
-          ;; CASE 2: PERCEPT AND NO MATCHING DESIG -> ADD DESIG
-          (add-new-human-desig percept desigs))
-      (if (not desigs)
-          ;; CASE 3: NO PERCEPT AND NO DESIGS -> DO NOTHING 
-          nil
-          ;; CASE 4: NO PERCEPT AND SOME DESIGS -> MAYBE REMOVE DESIG
-          ;(remove-old-human-desigs desigs timeout now)
-          ;; HACK: REMOVING ALL DESIGS
-          nil
-          )))
+  (when (human-detected-p percept)
+    (if (find-matching-human-desig percept desigs)
+        ;; CASE 1: PERCEPT AND MATCHING DESIG -> UPDATE DESIG
+        (update-existing-desig percept desigs)
+        ;; CASE 2: PERCEPT AND NO MATCHING DESIG -> ADD DESIG
+        (add-new-human-desig percept desigs)))
+  ;; CASE 3 (implicit): NO PERCEPT -> FORGET ABOUT ALL PRIOR DESIGS
+  )
 
 (declare-goal track (human-desigs human-percept)
   (declare (ignore human-desigs human-percept)))
+
+(declare-goal guard-workspace-of-tasks (human-desigs &rest tasks))
 
 (def-goal (track ?human-desigs ?human-percept)
   (declare (type cram-language-implementation:fluent ?human-desigs ?human-percept))
   (format t "Starting to track humans from percepts~%")
   (whenever ((pulsed ?human-percept))
-    (setf (value ?human-desigs)
-          (update-human-desigs (value ?human-percept) (value ?human-desigs)))))
+    (setf (value ?human-desigs) (update-human-desigs (value ?human-percept) (value ?human-desigs)))
+    (setf (value ?human-desigs) (remove-old-human-desigs (value ?human-desigs)))))
 
 (defun main ()
   (with-ros-node ("saphari_demo" :spin t)
