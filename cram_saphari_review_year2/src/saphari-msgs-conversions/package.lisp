@@ -29,5 +29,5 @@
 (in-package :cl-user)
 
 (defpackage :saphari-msgs-conversions
-  (:use :common-lisp :roslisp)
-  (:export :from-msg))
+  (:use :common-lisp :roslisp :alexandria)
+  (:export :from-msg :human->stamped-transforms :make-human-tf-prefix))

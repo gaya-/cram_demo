@@ -29,27 +29,6 @@
 (in-package :human-state-publisher)
 
 ;;;
-;;; MESSAGE CONVERSIONS TO TF
-;;;
-
-(defun human->stamped-transforms (human)
-  (when human
-    (destructuring-bind (&key user-id stamp frame-id bodyparts) human
-      (mapcar (rcurry #'bodypart->stamped-transform user-id stamp frame-id) bodyparts))))
-           
-(defun bodypart->stamped-transform (bodypart user-id stamp frame-id)
-  (destructuring-bind (&key label centroid) bodypart
-    (make-stamped-transform 
-     frame-id (make-bodypart-frame-id label user-id) stamp
-     (cl-transforms:make-transform centroid (cl-transforms:make-identity-rotation)))))
-
-(defun make-bodypart-frame-id (label user-id)
-  (concatenate 'string (make-tf-prefix user-id) (string-downcase (string label))))
-
-(defun make-tf-prefix (user-id)
-  (concatenate 'string "/human" (write-to-string user-id) "/"))
-
-;;;
 ;;; CALLBACK FUNCTION THAT IS THE MEAT OF THIS NODE
 ;;;
 
