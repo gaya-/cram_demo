@@ -29,6 +29,7 @@
 (in-package :cl-user)
 
 (desig-props:def-desig-package cram-tablesetting-demo
+  (:documentation "Top-level plan package for autonomous table-setting efforts")
   (:use #:common-lisp #:roslisp #:cram-utilities #:designators-ros
         #:cram-roslisp-common #:cram-designators #:location-costmap
         #:cram-plan-knowledge #:cram-plan-library
@@ -54,10 +55,14 @@
   (:import-from :cram-language def-cram-function def-top-level-cram-function)
   (:import-from :cram-reasoning def-fact-group <-)
   (:import-from :cram-roslisp-common *tf2*)
-  (:import-from :cram-task-knowledge table-setting-object situation?)
+  (:import-from :cram-task-knowledge
+                table-setting-object situation?
+                meal-time)
   (:desig-properties #:grasp-type #:push #:top-slide-down
                      #:scene #:dinnerplate #:shape #:name #:on
                      #:pancakemix #:flat #:box #:muesli
                      #:ketchup #:color #:yellow #:red #:blue
                      #:green #:white #:seat #:near #:left-of
-                     #:right-of #:behind-of #:center-of #:bowl))
+                     #:right-of #:behind-of #:center-of #:bowl
+                     type situation breakfast lunch
+                     dinner))

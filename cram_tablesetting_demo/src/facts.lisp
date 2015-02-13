@@ -32,5 +32,6 @@
   
     (<- (table-setting-object ?situation ?object)
       (situation? ?situation)
+      (meal-time ?situation ?meal-time)
       ;; TODO(winkler): Do something meaningful here now.
       ))
