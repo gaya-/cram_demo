@@ -28,5 +28,9 @@
 
 (in-package :cram-tablesetting-demo)
 
-(def-top-level-cram-function set-the-table ()
-  )
+(def-fact-group facts-table-setting (table-setting-object)
+  
+    (<- (table-setting-object ?situation ?object)
+      (situation? ?situation)
+      ;; TODO(winkler): Do something meaningful here now.
+      ))
