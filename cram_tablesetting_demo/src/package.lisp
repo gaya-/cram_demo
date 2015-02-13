@@ -54,6 +54,7 @@
   (:import-from :cram-language def-cram-function def-top-level-cram-function)
   (:import-from :cram-reasoning def-fact-group <-)
   (:import-from :cram-roslisp-common *tf2*)
+  (:import-from :cram-task-knowledge table-setting-object situation?)
   (:desig-properties #:grasp-type #:push #:top-slide-down
                      #:scene #:dinnerplate #:shape #:name #:on
                      #:pancakemix #:flat #:box #:muesli
