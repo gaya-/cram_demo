@@ -13,6 +13,7 @@
                :designators
                :cram-language-designator-support
                :roslisp
+               :alexandria
                :saphari_msgs-msg
                :saphari-msgs-conversions)
   :components

@@ -86,8 +86,6 @@
 (defun human-desig-too-old-p (desig now timeout)
   (declare (type cram-designators:human-designator desig))
   (let ((last-timestamp (desig-prop-value desig :last-detected)))
-    (format t "NOW : ~a~%LAST: ~a~%DIFF: ~a~%~%"
-            last-timestamp now (- now last-timestamp))
     (and last-timestamp (> (- now last-timestamp) timeout))))
 
 (defun find-matching-human-desig (human-percept human-desigs)
@@ -106,12 +104,12 @@
  human designators `desigs'. `percept' shall be a plist. Returns the new `desigs'."
   (declare (type list percept desigs))
   (format t "~%~%ADDING NEW HUMAN~%~%")
-  (cpl-desig-supp:with-designators 
-      ((new-desig (human `((:tracker :openni)
-                           (:user-id ,(getf percept :user-id))
-                           (:tf-prefix ,(make-human-tf-prefix (getf percept :user-id)))
-                           (:first-detected ,(getf percept :stamp))
-                           (:last-detected ,(getf percept :stamp))))))
+  (let ((new-desig 
+          (make-designator 'human `((:tracker :openni)
+                                    (:user-id ,(getf percept :user-id))
+                                    (:tf-prefix ,(make-human-tf-prefix (getf percept :user-id)))
+                                    (:first-detected ,(getf percept :stamp))
+                                    (:last-detected ,(getf percept :stamp))))))
     (let ((effective-desig
             (equate new-desig (make-effective-designator new-desig :data-object percept))))
       (cons effective-desig desigs))))
@@ -138,10 +136,16 @@
   ;; CASE 3 (implicit): NO PERCEPT -> FORGET ABOUT ALL PRIOR DESIGS
   )
 
+(defun human-close-p (human &optional (threshold 1.5))
+  (labels ((get-min (sequence)
+             (first (sort sequence #'<)))
+           (calculate-human-distance (human)
+             (get-min (mapcar (compose #'cl-transforms:x (rcurry #'getf :centroid))
+                              (getf (reference human) :bodyparts)))))
+    (< (calculate-human-distance human) threshold)))
+
 (declare-goal track (human-desigs human-percept)
   (declare (ignore human-desigs human-percept)))
-
-(declare-goal guard-workspace-of-tasks (human-desigs &rest tasks))
 
 (def-goal (track ?human-desigs ?human-percept)
   (declare (type cram-language-implementation:fluent ?human-desigs ?human-percept))
@@ -150,16 +154,48 @@
     (setf (value ?human-desigs) (update-human-desigs (value ?human-percept) (value ?human-desigs)))
     (setf (value ?human-desigs) (remove-old-human-desigs (value ?human-desigs)))))
 
+(defun begin-logging-human-intrusion (close-humans)
+  (let ((id (beliefstate:start-node "HUMAN-INTRUSION" nil 2)))
+    (mapcar (rcurry #'beliefstate:add-designator-to-node id) close-humans)
+    id))
+
+(defun finish-logging-human-intrusion (logging-id)
+  (beliefstate:stop-node logging-id))
+
 (defun main ()
-  (with-ros-node ("saphari_demo" :spin t)
+  (with-ros-node ("saphari_demo")
     (top-level
-      (let ((desigs-fluent (make-fluent :name "human-desigs-fluent"))
-            (percept-fluent (make-fluent :name "human-percept-fluent")))
+      (let ((human-desigs (make-fluent :name "human-desigs"))
+            (percept-fluent (make-fluent :name "human-percept-fluent"))
+            (close-humans (make-fluent :name "intruding-humans")))               
         (subscribe "/saphari/human" "saphari_msgs/Human" 
                    (lambda (msg) (setf (value percept-fluent) (from-msg msg))))
-        (track desigs-fluent percept-fluent)))))
+        (cpl-impl:with-tags        
+          (cpl-impl:pursue
+            (track human-desigs percept-fluent)
+            
+            (whenever ((pulsed human-desigs))
+              (setf (value close-humans) 
+                    (remove-if-not #'human-close-p (value human-desigs))))
+            
+            (whenever ((pulsed close-humans))
+              (when (value close-humans)
+                (let ((id (begin-logging-human-intrusion (value close-humans))))
+                  (format t "~%INTRUSION STARTED~%")
+                     (cpl:with-task-suspended (main-task)
+                    (cpl-impl:wait-for (cpl:eql close-humans nil)))
+                  (finish-logging-human-intrusion id)
+                  (format t "~%INTRUSION STOPPED~%~%~%")
+                  )
+))
+            
+            (:tag main-task ; (main-task) itself is not part of human-monitoring
+              (cpl-impl:retry-after-suspension (cpl-impl:wait-for (make-fluent :value nil))))
 
+
+
+))))))
+          
 (defun dump-files ()
   (with-ros-node ("saphari_demo")
     (beliefstate:extract-files)))
-          
