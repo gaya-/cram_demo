@@ -162,40 +162,76 @@
 (defun finish-logging-human-intrusion (logging-id)
   (beliefstate:stop-node logging-id))
 
+(cpl:def-top-level-cram-function run-demo (demo-handle)
+  (with-slots (human-percept right-arm) demo-handle
+    (let ((human-desigs (make-fluent :name "human-desigs"))
+          (close-humans (make-fluent :name "intruding-humans")))
+      (cpl-impl:pursue
+        (track human-desigs human-percept)
+        
+        (whenever ((pulsed human-desigs))
+          (setf *human* (value human-desigs))
+          (setf (value close-humans) (remove-if-not #'human-close-p (value human-desigs))))
+        
+        (:tag motion-task (cpl:sleep 1))
+          
+          
+            
+        (whenever ((pulsed close-humans))
+          (when (value close-humans)
+            (cpl:with-task-suspended (motion-task)
+              (cpl-impl:wait-for (cpl:eql close-humans nil)))))
+
+
+
+            ;; (let ((id (begin-logging-human-intrusion (value close-humans))))
+            ;;   (format t "~%INTRUSION STARTED~%")
+            ;;   (cpl:with-task-suspended (main-task)
+            ;;     (cpl-impl:wait-for (cpl:eql close-humans nil)))
+            ;;   (finish-logging-human-intrusion id)
+            ;;   (format t "~%INTRUSION STOPPED~%~%~%"))
+            ))
+        
+        ))))
+
+(cpl-impl:def-cram-function loop-beasty (right-arm)
+  (loop for i upto 3 do
+    (roslisp-beasty:move-beasty-and-wait 
+     right-arm (make-joint-goal '(0.52 -0.78 0.78 0.78 0.0 -0.78 0.0) nil))
+    (roslisp-beasty:move-beasty-and-wait 
+     right-arm 
+     (make-cartesian-goal 
+      (cl-transforms:make-transform
+       (cl-transforms:make-3d-vector 0.359 0.459 0.533)
+       (cl-transforms:axis-angle->quaternion
+        (cl-transforms:make-3d-vector 0 1 0) PI)) nil))))
+
+(defclass cram-saphari-demo ()
+  ((human-percept :initarg :human-percept :accessor human-percept)
+   (human-sub :initarg :human-sub :accessor human-sub)
+   (right-arm :initarg :right-arm :accessor right-arm)
+   
+))
+
+(defun init-cram-saphari-demo ()
+  (let* ((human-percept (make-fluent))
+         (human-sub (subscribe "/saphari/human" "saphari_msgs/Human" 
+                               (lambda (msg) (setf (value human-percept) (from-msg msg)))))
+         (right-arm (roslisp-beasty:make-beasty-handle "right_arm" 1 1337)))
+    (roslisp-beasty:beasty-switch-behavior right-arm (make-init-description nil))
+    (roslisp-beasty:beasty-safety-reset right-arm (make-init-description nil))
+    (make-instance 
+     'cram-saphari-demo
+     :human-percept human-percept
+     :human-sub human-sub
+     :right-arm right-arm)))
+   
 (defun main ()
   (with-ros-node ("saphari_demo")
-    (top-level
-      (let ((human-desigs (make-fluent :name "human-desigs"))
-            (percept-fluent (make-fluent :name "human-percept-fluent"))
-            (close-humans (make-fluent :name "intruding-humans")))               
-        (subscribe "/saphari/human" "saphari_msgs/Human" 
-                   (lambda (msg) (setf (value percept-fluent) (from-msg msg))))
-        (cpl-impl:with-tags        
-          (cpl-impl:pursue
-            (track human-desigs percept-fluent)
-            
-            (whenever ((pulsed human-desigs))
-              (setf (value close-humans) 
-                    (remove-if-not #'human-close-p (value human-desigs))))
-            
-            (whenever ((pulsed close-humans))
-              (when (value close-humans)
-                (let ((id (begin-logging-human-intrusion (value close-humans))))
-                  (format t "~%INTRUSION STARTED~%")
-                     (cpl:with-task-suspended (main-task)
-                    (cpl-impl:wait-for (cpl:eql close-humans nil)))
-                  (finish-logging-human-intrusion id)
-                  (format t "~%INTRUSION STOPPED~%~%~%")
-                  )
-))
-            
-            (:tag main-task ; (main-task) itself is not part of human-monitoring
-              (cpl-impl:retry-after-suspension (cpl-impl:wait-for (make-fluent :value nil))))
+    (let ((demo-handle (init-cram-saphari-demo)))
+      (top-level
+        (run-demo demo-handle)))))
 
-
-
-))))))
-          
 (defun dump-files ()
   (with-ros-node ("saphari_demo")
     (beliefstate:extract-files)))

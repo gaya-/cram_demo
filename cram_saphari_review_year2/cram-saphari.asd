@@ -15,9 +15,11 @@
                :roslisp
                :alexandria
                :saphari_msgs-msg
-               :saphari-msgs-conversions)
+               :saphari-msgs-conversions
+               :roslisp-beasty)
   :components
   ((:module "cram-saphari"
             :components
             ((:file "package")
+             (:file "beasty-movements" :depends-on ("package"))
              (:file "human-tracking" :depends-on ("package"))))))
