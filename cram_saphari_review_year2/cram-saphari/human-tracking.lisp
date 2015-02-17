@@ -29,46 +29,7 @@
 (in-package :cram-saphari)
 
 ;;;
-;;; TEST DATA
-;;;
-
-(defparameter *humans-fluent* 
-  (cram-language-implementation:make-fluent :name "humans-fluent"))
-
-(defparameter *tracker-fluent* nil)
-
-(defparameter *test-percept0*
-  `(:user-id -1 :stamp 1.0 :frame-id "some-frame" :bodyparts nil))
-
-(defparameter *test-percept1*
-  `(:user-id -1 :stamp 2.0 :frame-id "some-frame" :bodyparts nil))
-
-(defparameter *test-percept2*
-  `(:user-id 1 :stamp 3.0 :frame-id "some-frame" :bodyparts (:knee :hand)))
-
-(defparameter *test-percept3*
-  `(:user-id 1 :stamp 4.0 :frame-id "some-frame" :bodyparts (:knee :hand)))
-
-(defparameter *test-percept4*
-  `(:user-id -1 :stamp 5.0 :frame-id "some-frame" :bodyparts nil))
-
-(defparameter *test-percepts*
-  (list *test-percept0* *test-percept1* *test-percept2* *test-percept3* *test-percept4*))
-
-(defparameter *test-desig0*
-  (make-designator 'human '((:tracker :openni))))
-
-(defparameter *test-desig1*
-  (make-effective-designator
-   *test-desig0*
-   :new-properties (merge-desig-descriptions *test-desig0* '((:user-id 1)))
-   :data-object *test-percept2*))
-
-(defparameter *test-desigs*
-  (list *test-desig0* *test-desig1*))
-
-;;;
-;;; ACTUAL HUMAN DESIGNATOR STUFF
+;;; AUXILIARY FUNCTIONS PERTAINING HUMAN DESIGS
 ;;;
 
 (defun human-detected-p (human-percept)
@@ -144,15 +105,9 @@
                               (getf (reference human) :bodyparts)))))
     (< (calculate-human-distance human) threshold)))
 
-(declare-goal track (human-desigs human-percept)
-  (declare (ignore human-desigs human-percept)))
-
-(def-goal (track ?human-desigs ?human-percept)
-  (declare (type cram-language-implementation:fluent ?human-desigs ?human-percept))
-  ;; (format t "Starting to track humans from percepts~%")
-  (whenever ((pulsed ?human-percept))
-    (setf (value ?human-desigs) (update-human-desigs (value ?human-percept) (value ?human-desigs)))
-    (setf (value ?human-desigs) (remove-old-human-desigs (value ?human-desigs)))))
+;;;
+;;; LOGGING HOOKS
+;;;
 
 (defun begin-logging-human-intrusion (close-humans)
   (let ((id (beliefstate:start-node "HUMAN-INTRUSION" nil 2)))
@@ -162,6 +117,19 @@
 (defun finish-logging-human-intrusion (logging-id)
   (beliefstate:stop-node logging-id))
 
+;;;
+;;; CRAM INTERFACE
+;;;
+
+(declare-goal track (human-desigs human-percept)
+  (declare (ignore human-desigs human-percept)))
+
+(def-goal (track ?human-desigs ?human-percept)
+  (declare (type cram-language-implementation:fluent ?human-desigs ?human-percept))
+  ;; (format t "Starting to track humans from percepts~%")
+  (whenever ((pulsed ?human-percept))
+    (setf (value ?human-desigs) (update-human-desigs (value ?human-percept) (value ?human-desigs)))
+    (setf (value ?human-desigs) (remove-old-human-desigs (value ?human-desigs)))))
 (cpl-impl::def-plan-macro with-human-monitoring ((human-percept) &body body)
   ;;; GIGANTIC HACK because I do not know how to make a proper macro..
   (with-gensyms (human-percept-sym)
@@ -171,6 +139,10 @@
         (lambda () ,@body)))))
 
 (cpl-impl:def-cram-function execute-with-human-monitoring (human-percept main-lambda)
+  "Example usage:
+      (def-top-level-cram-function test-human-monitoring (human-percept)
+        (with-human-monitoring (human-percept)
+          (cpl:sleep 10)))"
   (let ((human-desigs (make-fluent :name "human-desigs"))
         (close-humans (make-fluent :name "intruding-humans")))
     (cpl-impl:pursue
@@ -190,120 +162,3 @@
               (cpl-impl:wait-for (cpl:eql close-humans nil)))
             (finish-logging-human-intrusion id)
             (format t "~%INTRUSION STOPPED~%~%~%")))))))
-
-(cpl-impl:def-top-level-cram-function test-human-monitoring (demo-handle)
-  (with-human-monitoring ((human-percept demo-handle))
-    (cpl:sleep 10)))
-
-(cpl-impl:def-top-level-cram-function test-suspend-motions (demo-handle)
-  (with-slots (human-percept right-arm) demo-handle
-    (with-human-monitoring (human-percept) 
-      (cpl-impl:on-suspension (roslisp-beasty:stop-beasty right-arm)
-        (cpl-impl:retry-after-suspension
-          (roslisp-beasty:move-beasty-and-wait 
-           right-arm (make-joint-goal '(0.52 -0.78 0.78 0.78 0.0 -0.78 0.0) nil)))))
-    (with-human-monitoring (human-percept) 
-      (cpl-impl:on-suspension (roslisp-beasty:stop-beasty right-arm)
-        (cpl-impl:retry-after-suspension
-          (roslisp-beasty:move-beasty-and-wait 
-           right-arm 
-           (make-cartesian-goal 
-            (cl-transforms:make-transform
-             (cl-transforms:make-3d-vector 0.359 0.459 0.533)
-             (cl-transforms:axis-angle->quaternion
-              (cl-transforms:make-3d-vector 0 1 0) PI)) nil)))))))
-         
-(cpl-impl:def-cram-function loop-beasty (right-arm)
-  (loop for i upto 3 do
-    (roslisp-beasty:move-beasty-and-wait 
-     right-arm (make-joint-goal '(0.52 -0.78 0.78 0.78 0.0 -0.78 0.0) nil))
-    (roslisp-beasty:move-beasty-and-wait 
-     right-arm 
-     (make-cartesian-goal 
-      (cl-transforms:make-transform
-       (cl-transforms:make-3d-vector 0.359 0.459 0.533)
-       (cl-transforms:axis-angle->quaternion
-        (cl-transforms:make-3d-vector 0 1 0) PI)) nil))))
-
-(defclass cram-saphari-demo ()
-  ((human-percept :initarg :human-percept :accessor human-percept)
-   (human-sub :initarg :human-sub :accessor human-sub)
-   (right-arm :initarg :right-arm :accessor right-arm)
-   
-))
-
-(defun init-cram-saphari-demo ()
-  (let* ((human-percept (make-fluent))
-         (human-sub (subscribe "/saphari/human" "saphari_msgs/Human" 
-                               (lambda (msg) (setf (value human-percept) (from-msg msg)))))
-         (right-arm (roslisp-beasty:make-beasty-handle "right_arm" 1 1337)))
-    (roslisp-beasty:beasty-switch-behavior right-arm (make-init-description nil))
-    (roslisp-beasty:beasty-safety-reset right-arm (make-init-description nil))
-    (make-instance 
-     'cram-saphari-demo
-     :human-percept human-percept
-     :human-sub human-sub
-     :right-arm right-arm)))
-   
-(defun main ()
-  (with-ros-node ("saphari_demo")
-    (test-human-monitoring (init-cram-saphari-demo))))
-
-(defun dump-files ()
-  (with-ros-node ("saphari_demo")
-    (beliefstate:extract-files)))
-
-;;
-;; NICE WORKKING EXAMPLE
-;;
-;; (top-level
-;;   (let ((fluent (make-fluent :value nil)))
-;;     (cpl-impl:with-tags
-;;       (cpl-impl:par
-;;         (:tag suspending-task
-;;           (cpl:sleep 0.5)
-;;           (cpl-impl:with-task-suspended (suspended-task)
-;;             (format t "successfully suspended task~%")))
-;;         (:tag suspended-task
-;;           (cpl-impl:on-suspension (setf (value fluent) t)
-;;             (format t "starting task~%")
-;;             (cpl-impl:wait-for fluent)
-;;             (format t "stopping task~%")))))))
-;;
-
-;;
-;; WEIRD BEHAVIOR #1
-;;
-;;
-;; (top-level
-;;   (cpl-impl:with-tags
-;;     (cpl-impl:par
-;;       (:tag suspending-task
-;;         (cpl:sleep 0.5)
-;;         (cpl-impl:with-task-suspended (suspended-task)
-;;           (format t "successfully suspended task~%")))
-;;       (:tag suspended-task
-;;         (format t "starting task~%")
-;;         (sleep 1)
-;;         (format t "in the middle of task~%")
-;;         (sleep 1)
-;;         (format t "finishing task~%")))))
-;;
-
-;;
-;; WEIRD BEHAVIOR #2
-;;
-;; (top-level
-;;   (cpl-impl:with-tags
-;;     (cpl-impl:par
-;;       (:tag suspending-task
-;;         (cpl:sleep 0.5)
-;;         (cpl-impl:with-task-suspended (suspended-task)
-;;           (format t "successfully suspended task~%")))
-;;       (:tag suspended-task
-;;         (format t "starting task~%")
-;;         (cpl:sleep 1)
-;;         (format t "in the middle of task~%")
-;;         (cpl:sleep 1)
-;;         (format t "finishing task~%")))))
-;;

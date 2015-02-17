@@ -22,4 +22,6 @@
             :components
             ((:file "package")
              (:file "beasty-movements" :depends-on ("package"))
-             (:file "human-tracking" :depends-on ("package"))))))
+             (:file "human-tracking" :depends-on ("package"))
+             (:file "main" :depends-on ("beasty-movements" "human-tracking"))
+             ))))
