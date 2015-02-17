@@ -103,7 +103,7 @@
   "Creates a new human designator out of `percept' and appends it to the list
  human designators `desigs'. `percept' shall be a plist. Returns the new `desigs'."
   (declare (type list percept desigs))
-  (format t "~%~%ADDING NEW HUMAN~%~%")
+  ;; (format t "~%~%ADDING NEW HUMAN~%~%")
   (let ((new-desig 
           (make-designator 'human `((:tracker :openni)
                                     (:user-id ,(getf percept :user-id))
@@ -149,7 +149,7 @@
 
 (def-goal (track ?human-desigs ?human-percept)
   (declare (type cram-language-implementation:fluent ?human-desigs ?human-percept))
-  (format t "Starting to track humans from percepts~%")
+  ;; (format t "Starting to track humans from percepts~%")
   (whenever ((pulsed ?human-percept))
     (setf (value ?human-desigs) (update-human-desigs (value ?human-percept) (value ?human-desigs)))
     (setf (value ?human-desigs) (remove-old-human-desigs (value ?human-desigs)))))
@@ -162,38 +162,57 @@
 (defun finish-logging-human-intrusion (logging-id)
   (beliefstate:stop-node logging-id))
 
-(cpl:def-top-level-cram-function run-demo (demo-handle)
+(cpl-impl::def-plan-macro with-human-monitoring ((human-percept) &body body)
+  ;;; GIGANTIC HACK because I do not know how to make a proper macro..
+  (with-gensyms (human-percept-sym)
+    `(let ((,human-percept-sym ,human-percept))
+       (execute-with-human-monitoring 
+        ,human-percept-sym
+        (lambda () ,@body)))))
+
+(cpl-impl:def-cram-function execute-with-human-monitoring (human-percept main-lambda)
+  (let ((human-desigs (make-fluent :name "human-desigs"))
+        (close-humans (make-fluent :name "intruding-humans")))
+    (cpl-impl:pursue
+      (track human-desigs human-percept)
+      
+      (whenever ((pulsed human-desigs))
+        (setf (value close-humans) (remove-if-not #'human-close-p (value human-desigs))))
+        
+      (:tag main-task (funcall main-lambda))
+                      
+      (whenever ((pulsed close-humans))
+        (when (value close-humans)
+
+          (let ((id (begin-logging-human-intrusion (value close-humans))))
+            (format t "~%INTRUSION STARTED~%")
+            (cpl:with-task-suspended (main-task)
+              (cpl-impl:wait-for (cpl:eql close-humans nil)))
+            (finish-logging-human-intrusion id)
+            (format t "~%INTRUSION STOPPED~%~%~%")))))))
+
+(cpl-impl:def-top-level-cram-function test-human-monitoring (demo-handle)
+  (with-human-monitoring ((human-percept demo-handle))
+    (cpl:sleep 10)))
+
+(cpl-impl:def-top-level-cram-function test-suspend-motions (demo-handle)
   (with-slots (human-percept right-arm) demo-handle
-    (let ((human-desigs (make-fluent :name "human-desigs"))
-          (close-humans (make-fluent :name "intruding-humans")))
-      (cpl-impl:pursue
-        (track human-desigs human-percept)
-        
-        (whenever ((pulsed human-desigs))
-          (setf *human* (value human-desigs))
-          (setf (value close-humans) (remove-if-not #'human-close-p (value human-desigs))))
-        
-        (:tag motion-task (cpl:sleep 1))
-          
-          
-            
-        (whenever ((pulsed close-humans))
-          (when (value close-humans)
-            (cpl:with-task-suspended (motion-task)
-              (cpl-impl:wait-for (cpl:eql close-humans nil)))))
-
-
-
-            ;; (let ((id (begin-logging-human-intrusion (value close-humans))))
-            ;;   (format t "~%INTRUSION STARTED~%")
-            ;;   (cpl:with-task-suspended (main-task)
-            ;;     (cpl-impl:wait-for (cpl:eql close-humans nil)))
-            ;;   (finish-logging-human-intrusion id)
-            ;;   (format t "~%INTRUSION STOPPED~%~%~%"))
-            ))
-        
-        ))))
-
+    (with-human-monitoring (human-percept) 
+      (cpl-impl:on-suspension (roslisp-beasty:stop-beasty right-arm)
+        (cpl-impl:retry-after-suspension
+          (roslisp-beasty:move-beasty-and-wait 
+           right-arm (make-joint-goal '(0.52 -0.78 0.78 0.78 0.0 -0.78 0.0) nil)))))
+    (with-human-monitoring (human-percept) 
+      (cpl-impl:on-suspension (roslisp-beasty:stop-beasty right-arm)
+        (cpl-impl:retry-after-suspension
+          (roslisp-beasty:move-beasty-and-wait 
+           right-arm 
+           (make-cartesian-goal 
+            (cl-transforms:make-transform
+             (cl-transforms:make-3d-vector 0.359 0.459 0.533)
+             (cl-transforms:axis-angle->quaternion
+              (cl-transforms:make-3d-vector 0 1 0) PI)) nil)))))))
+         
 (cpl-impl:def-cram-function loop-beasty (right-arm)
   (loop for i upto 3 do
     (roslisp-beasty:move-beasty-and-wait 
@@ -228,10 +247,63 @@
    
 (defun main ()
   (with-ros-node ("saphari_demo")
-    (let ((demo-handle (init-cram-saphari-demo)))
-      (top-level
-        (run-demo demo-handle)))))
+    (test-human-monitoring (init-cram-saphari-demo))))
 
 (defun dump-files ()
   (with-ros-node ("saphari_demo")
     (beliefstate:extract-files)))
+
+;;
+;; NICE WORKKING EXAMPLE
+;;
+;; (top-level
+;;   (let ((fluent (make-fluent :value nil)))
+;;     (cpl-impl:with-tags
+;;       (cpl-impl:par
+;;         (:tag suspending-task
+;;           (cpl:sleep 0.5)
+;;           (cpl-impl:with-task-suspended (suspended-task)
+;;             (format t "successfully suspended task~%")))
+;;         (:tag suspended-task
+;;           (cpl-impl:on-suspension (setf (value fluent) t)
+;;             (format t "starting task~%")
+;;             (cpl-impl:wait-for fluent)
+;;             (format t "stopping task~%")))))))
+;;
+
+;;
+;; WEIRD BEHAVIOR #1
+;;
+;;
+;; (top-level
+;;   (cpl-impl:with-tags
+;;     (cpl-impl:par
+;;       (:tag suspending-task
+;;         (cpl:sleep 0.5)
+;;         (cpl-impl:with-task-suspended (suspended-task)
+;;           (format t "successfully suspended task~%")))
+;;       (:tag suspended-task
+;;         (format t "starting task~%")
+;;         (sleep 1)
+;;         (format t "in the middle of task~%")
+;;         (sleep 1)
+;;         (format t "finishing task~%")))))
+;;
+
+;;
+;; WEIRD BEHAVIOR #2
+;;
+;; (top-level
+;;   (cpl-impl:with-tags
+;;     (cpl-impl:par
+;;       (:tag suspending-task
+;;         (cpl:sleep 0.5)
+;;         (cpl-impl:with-task-suspended (suspended-task)
+;;           (format t "successfully suspended task~%")))
+;;       (:tag suspended-task
+;;         (format t "starting task~%")
+;;         (cpl:sleep 1)
+;;         (format t "in the middle of task~%")
+;;         (cpl:sleep 1)
+;;         (format t "finishing task~%")))))
+;;
