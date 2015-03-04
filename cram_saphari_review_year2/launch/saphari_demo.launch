@@ -3,4 +3,6 @@
 
   <node pkg="tf" type="static_transform_publisher" name="fake_localization" 
     args="0 0 0 0 0 0 map odom 100" />
+
+  <node pkg="tf2_ros" type="buffer_server" name="tf_buffer"/>
 </launch>
