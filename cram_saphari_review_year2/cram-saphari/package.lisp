@@ -29,7 +29,8 @@
 (in-package :cl-user)
 
 (defpackage cram-saphari
-  (:use :common-lisp :desig :roslisp :saphari-msgs-conversions :alexandria)
+  (:use :common-lisp :desig :roslisp :saphari-msgs-conversions :alexandria :cram-reasoning
+        :cl-tf2 :cl-transforms)
   (:import-from :cram-language 
    :make-fluent :top-level :def-goal :declare-goal :whenever :pulsed :tag)
   (:import-from :cram-language-implementation :value))

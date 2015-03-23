@@ -99,6 +99,9 @@
     :tool-mass 2.5
     :tool-com ,(cl-transforms:make-3d-vector 0.0 0.0 0.19)))
 
+(defparameter *default-safety-strategies*
+  `(:contact-strategies ,roslisp-beasty:*default-safety-strategies*))
+
 ;;;
 ;;; AUX CREATION FUNCTIONS
 ;;;
@@ -109,6 +112,7 @@
    *joint-goal-defaults*
    *cartesian-goal-defaults*
    *robot-setup-defaults*
+   *default-safety-strategies*
    (list :simulated-robot sim-p
          :command-type :initialize)))
 
@@ -117,6 +121,7 @@
    'list
    *joint-goal-defaults*
    *robot-setup-defaults*
+   *default-safety-strategies*
    (list :simulated-robot sim-p
          :command-type :joint-impedance
          :joint-goal-config goal-config)))
@@ -126,6 +131,186 @@
    'list
    *cartesian-goal-defaults*
    *robot-setup-defaults*
+   *default-safety-strategies*
    (list :simulated-robot sim-p
          :command-type :cartesian-impedance
-         :cartesian-goal-pose goal-transform)))
+         :cartesian-goal-pose (ensure-transform goal-transform))))
+
+(defun ensure-transform (transform)
+  (etypecase transform
+    (cl-transforms:transform transform)
+    (cl-tf2::stamped-transform (cl-tf2::transform transform))))
+;;;
+;;; VARIOUS AUX
+;;; 
+
+(defun collision-p (collision-type)
+  (and (roslisp-beasty::collision-type-p collision-type)
+       (not (eql :NO-COLLISION collision-type))))
+
+;; (defun plist-alist-recursively (plist)
+;;   "Returns an alist containing the keys and values of the property list
+;;  `plist'. Recursively calls itself on any of the values of `plist' that are
+;;  also property lists. Note: Leaves `plist' untouched."
+;;   (flet ((plist-p (obj)
+;;            (and (listp obj) (evenp (length obj)) (<= 2 (length obj)))))
+;;   (let ((tmp-list nil))
+;;     (alexandria:doplist (key value plist)
+;;       (setf (getf tmp-list key)
+;;             (if (plist-p value)
+;;                 (progn
+;;                   (list (plist-alist-recursively value))
+;;                   (format t "~a~%" value))
+;;                 (list value))))
+;;     (alexandria:plist-alist tmp-list))))
+
+(defun plist->cram-list-recursively (plist)
+  (flet ((plist-p (obj)
+           (and (listp obj) (evenp (length obj)) (<= 2 (length obj)))))
+    (let ((result nil))
+      (alexandria:doplist (key value plist)
+        (push (list key (if (plist-p value)
+                            (plist->cram-list-recursively value)
+                            value))
+              result))
+      result)))
+    
+;;;
+;;; ACTION DESIGNATOR RESOLUTION
+;;;
+
+(defun broadcast-transform (transform &optional (handle *handle*))
+  (cl-tf2:send-transform (tf-broadcaster handle) transform))
+
+(def-fact-group beasty-action-designators (action-desig)
+
+  (<- (beasty-desig? ?desig)
+    (action-desig? ?desig)
+    (desig-prop ?desig (:controller :beasty)))
+
+  (<- (right-beasty-desig? ?desig)
+    (beasty-desig? ?desig)
+    (desig-prop ?desig (:arm :right)))
+
+  (<- (action-desig ?desig ?beasty-goal)
+    (right-beasty-desig? ?desig)
+    (desig-prop ?desig (:field-of-view :clear))
+    (lisp-fun make-joint-goal (0.52 -0.78 0.78 0.78 0.0 -0.78 0.0) nil ?beasty-goal)
+    (lisp-fun add-motion-command-to-desig ?desig ?beasty-goal ?_))
+
+  (<- (action-desig ?desig ?beasty-goal)
+    (right-beasty-desig? ?desig)
+    (desig-prop ?desig (:move :over))
+    (desig-prop ?desig (:object ?object))
+    (lisp-fun desig->pregrasp-transform ?object -0.1 ?transform)
+    (lisp-fun broadcast-transform ?transform ?_)
+    (lisp-fun make-cartesian-goal ?transform nil ?beasty-goal)
+    (lisp-fun add-motion-command-to-desig ?desig ?beasty-goal ?_))
+
+  (<- (action-desig ?desig ?beasty-goal)
+    (right-beasty-desig? ?desig)
+    (desig-prop ?desig (:move :down))
+    (lisp-fun relative-cartesian-transform 0.15 ?transform)
+    (lisp-fun broadcast-transform ?transform ?_)
+    (lisp-fun make-cartesian-goal ?transform nil ?beasty-goal)
+    (lisp-fun add-motion-command-to-desig ?desig ?beasty-goal ?_))
+;;; (symbol-function 'move-cartesian)
+)
+
+(defun add-motion-command-to-desig (desig goal)
+  (let ((new-goal (copy-list goal)))
+    ;; HACK for logging: lists of values should be vectors
+    (setf (getf new-goal :joint-goal-config)
+          (coerce (getf new-goal :joint-goal-config) 'vector))
+    (let ((new-desig (copy-designator desig :new-description (plist->cram-list-recursively new-goal))))
+      ;; manually setting the solutions slot of the new desig to avoid re-resolution
+      (setf (slot-value new-desig 'desig::solutions) (list goal))
+      (equate desig new-desig))))
+             
+(defun desig->stamped-transform (desig)
+  (let ((pose (desig-prop-value desig 'desig-props:pose))
+        (name (desig-prop-value desig 'desig-props::response)))
+    (with-slots ((frame-id cl-tf-datatypes:frame-id) (stamp cl-tf-datatypes:stamp) 
+                 (origin cl-transforms:origin) (orientation cl-transforms:orientation)) pose
+      (cl-tf2:make-stamped-transform
+       frame-id name stamp
+       (cl-transforms:make-transform origin orientation)))))
+
+(defun desig->pregrasp-transform (desig offset &optional (handle *handle*))
+  (let ((tool-transform (desig->stamped-transform desig))
+        (offset (cl-transforms:make-transform
+                 (cl-transforms:make-3d-vector 0 0 offset)
+                 (cl-transforms:make-identity-rotation)))
+        (hand-eye (tf2-lookup
+                   (tf handle) 
+                   
+                   "calib_right_arm_base_link"
+                   "head_mount_kinect2_rgb_optical_frame"))
+        (hand-rotation
+          (cl-transforms:make-transform
+           (cl-transforms:make-identity-vector)
+           (cl-transforms:axis-angle->quaternion 
+            (cl-transforms:make-3d-vector 0 0 1)
+            (/ PI 2.0))))
+)
+    (with-slots ((transform cl-tf2::transform) (header cl-tf2::header)
+                 (child-frame-id cl-tf2::child-frame-id)) tool-transform
+      (cl-tf2:make-stamped-transform
+       "calib_right_arm_base_link"
+       (concatenate 'string child-frame-id "_pregrasp") 
+       (roslisp:ros-time) 
+       (cl-transforms:transform* (cl-tf2::transform hand-eye) transform offset hand-rotation)
+       ))))
+        
+(defun tf2-lookup (tf frame-id child-frame-id)
+  (handler-case (cl-tf2:lookup-transform tf frame-id child-frame-id)
+    (cl-tf2::tf2-server-error () (progn (cpl:sleep 0.1) (tf2-lookup tf frame-id child-frame-id)))))
+
+(defun relative-cartesian-transform (z-offset &optional (handle *handle*))
+  (let ((hand-transform 
+          (tf2-lookup (tf handle) "calib_right_arm_base_link" "right_gripper_tool_frame"))
+        (offset (cl-transforms:make-transform
+                 (cl-transforms:make-3d-vector 0 0 z-offset)
+                 (cl-transforms:make-identity-rotation))))
+    (with-slots ((transform cl-tf2::transform) (header cl-tf2::header)
+                 (child-frame-id cl-tf2::child-frame-id)) hand-transform
+      (cl-tf2:make-stamped-transform
+       "calib_right_arm_base_link"
+       (concatenate 'string child-frame-id "_downgoal") 
+       (roslisp:ros-time) 
+       (cl-transforms:transform* (cl-tf2::transform hand-transform) offset)))))
+
+;;;
+;;; LOGGING HOOKS
+;;;
+ 
+(defun begin-logging-safety-reset (action-desig)
+  (let ((id (beliefstate:start-node "SAFETY-RESET" nil 2)))
+    (beliefstate:add-designator-to-node action-desig id)
+    id))
+
+(defun finish-logging-safety-reset (logging-id)
+  (beliefstate:stop-node logging-id))
+      
+(defun log-collision (collision)
+  (let ((logging-id (beliefstate:start-node (string collision) nil 2)))
+    (beliefstate:stop-node logging-id)))
+
+;;;
+;;; CRAM PLAN INTERFACE
+;;;
+
+(cpl-impl:def-cram-function safely-perform-action (arm action)
+  (cpl-impl:pursue
+    (cpl-impl:on-suspension (roslisp-beasty:stop-beasty arm)
+      (cpl-impl:retry-after-suspension
+        (when (collision-p (value (roslisp-beasty:collision-fluent arm)))
+          (reset-safety arm action))
+        (roslisp-beasty:move-beasty-and-wait arm (reference action))))
+    (whenever ((pulsed (roslisp-beasty:collision-fluent arm)))
+      (when (collision-p (value (roslisp-beasty:collision-fluent arm)))
+        (log-collision (value (roslisp-beasty:collision-fluent arm)))))))
+          
+(cpl-impl:def-cram-function reset-safety (arm action)
+  (roslisp-beasty:beasty-safety-reset arm (reference action))
+  (roslisp-beasty:beasty-switch-behavior arm (reference action)))
